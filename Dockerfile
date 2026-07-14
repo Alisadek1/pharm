@@ -25,8 +25,9 @@ RUN apt-get update && apt-get install -y libpng-dev libonig-dev libxml2-dev zip 
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache modules
-RUN a2enmod rewrite headers proxy proxy_http
+# Enable Apache modules (disable extra MPM to avoid "More than one MPM loaded" error)
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork rewrite headers proxy proxy_http
 
 # Apache virtual host config
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
