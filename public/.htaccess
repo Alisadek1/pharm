@@ -1,0 +1,13 @@
+Options -Indexes
+RewriteEngine On
+
+# Route API calls to the backend
+RewriteCond %{REQUEST_URI} ^/pharm/api/
+RewriteRule ^api/(.*)$ /pharm/backend/public/api/$1 [L,QSA,P]
+
+# Serve existing static files directly (JS, CSS, images, fonts)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# For everything else, serve index.html (React Router handles routing)
+RewriteRule ^ index.html [L]

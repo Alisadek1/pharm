@@ -1,0 +1,11 @@
+frontend/node_modules/
+frontend/dist/
+backend/storage/logs/
+backend/storage/backups/
+backend/storage/uploads/
+backend/.env
+backend/.env.railway
+public/assets/
+*.log
+.DS_Store
+Thumbs.db

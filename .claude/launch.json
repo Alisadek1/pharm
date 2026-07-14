@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "love-story",
+      "runtimeExecutable": "C:\\xampp\\php\\php.exe",
+      "runtimeArgs": ["-S", "localhost:8090", "-t", "C:\\xampp\\htdocs\\love-story"],
+      "port": 8090
+    }
+  ]
+}

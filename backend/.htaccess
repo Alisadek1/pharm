@@ -1,0 +1,2 @@
+# Protect sensitive subdirectories from direct browser access.
+# The public/ entry point is intentionally accessible.
