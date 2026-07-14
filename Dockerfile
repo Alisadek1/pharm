@@ -42,6 +42,7 @@ RUN mkdir -p /var/www/backend/storage/logs \
     && chown -R www-data:www-data /var/www/ \
     && chmod -R 755 /var/www/backend/storage
 
-EXPOSE 80
+EXPOSE ${PORT:-80}
 
-CMD ["apache2-foreground"]
+# Railway injects $PORT — configure Apache to listen on it at runtime
+CMD bash -c "sed -i \"s/Listen 80/Listen \${PORT:-80}/g\" /etc/apache2/ports.conf && apache2-foreground"
