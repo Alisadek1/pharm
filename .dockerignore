@@ -2,7 +2,9 @@ frontend/node_modules
 frontend/dist
 backend/storage/logs/*
 backend/storage/backups/*
+backend/storage/uploads/*
 backend/.env
-docker
+backend/.env.railway
 .git
+.claude
 *.md
