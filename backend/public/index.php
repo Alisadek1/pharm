@@ -80,7 +80,7 @@ $uri = rtrim($uri, '/') ?: '/';
 
 // Remove base path if running in a subdirectory (local dev: /pharm/backend/public)
 $basePath = $_ENV['APP_BASE_PATH'] ?? '/pharm/backend/public';
-if ($basePath && str_starts_with($uri, $basePath)) {
+if ($basePath && $basePath !== 'none' && str_starts_with($uri, $basePath)) {
     $uri = substr($uri, strlen($basePath)) ?: '/';
 }
 
