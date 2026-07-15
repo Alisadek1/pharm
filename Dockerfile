@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y \
 
 # nginx config (uses $PORT via envsubst at runtime)
 COPY docker/nginx.conf /etc/nginx/nginx.template.conf
+COPY docker/start.sh /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
 # PHP backend
 COPY backend/ /var/www/backend/
@@ -48,8 +50,4 @@ RUN mkdir -p /var/www/backend/storage/logs \
 
 EXPOSE ${PORT:-80}
 
-CMD bash -c "\
-    export PORT=\${PORT:-80} && \
-    envsubst '\$PORT' < /etc/nginx/nginx.template.conf > /etc/nginx/nginx.conf && \
-    php-fpm8.2 -D && \
-    nginx -g 'daemon off;'"
+CMD ["bash", "/start.sh"]
