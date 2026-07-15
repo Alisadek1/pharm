@@ -334,6 +334,7 @@ CREATE TABLE `medicines` (
   `unit` VARCHAR(50) DEFAULT 'Piece',
   `purchase_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
   `selling_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+  `public_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
   `minimum_stock` INT NOT NULL DEFAULT 10,
   `prescription_required` TINYINT(1) NOT NULL DEFAULT 0,
   `controlled_drug` TINYINT(1) NOT NULL DEFAULT 0,
@@ -367,6 +368,7 @@ CREATE TABLE `medicine_batches` (
   `expiry_date` DATE NOT NULL,
   `purchase_price` DECIMAL(10,3) NOT NULL,
   `selling_price` DECIMAL(10,3) NOT NULL,
+  `public_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
   `quantity` INT NOT NULL DEFAULT 0,
   `initial_quantity` INT NOT NULL DEFAULT 0,
   `notes` TEXT,
@@ -430,6 +432,7 @@ CREATE TABLE `purchase_items` (
   `quantity` INT NOT NULL,
   `purchase_price` DECIMAL(10,3) NOT NULL,
   `selling_price` DECIMAL(10,3) NOT NULL,
+  `public_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
   `subtotal` DECIMAL(12,3) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_purchase_items_purchase` (`purchase_id`),
@@ -529,6 +532,11 @@ CREATE TABLE `returns` (
   `total_amount` DECIMAL(12,3) NOT NULL DEFAULT 0.000,
   `reason` TEXT,
   `status` ENUM('pending','completed','cancelled') DEFAULT 'completed',
+  `payment_method` ENUM('cash','visa','wallet','bank_transfer','mixed') DEFAULT NULL,
+  `cash_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+  `visa_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+  `wallet_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+  `bank_transfer_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -600,6 +608,27 @@ CREATE TABLE `notifications` (
   KEY `idx_notifications_type` (`type`),
   KEY `idx_notifications_read` (`is_read`),
   KEY `idx_notifications_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================
+-- DRUG SYNC LOGS (Integration)
+-- =============================================
+CREATE TABLE `drug_sync_logs` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `provider` VARCHAR(50) NOT NULL DEFAULT 'saudi_rsd',
+  `sync_type` ENUM('full','incremental','single') NOT NULL DEFAULT 'full',
+  `status` ENUM('running','completed','failed') NOT NULL DEFAULT 'running',
+  `medicines_checked` INT UNSIGNED NOT NULL DEFAULT 0,
+  `medicines_updated` INT UNSIGNED NOT NULL DEFAULT 0,
+  `medicines_failed` INT UNSIGNED NOT NULL DEFAULT 0,
+  `started_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at` TIMESTAMP NULL DEFAULT NULL,
+  `error_message` TEXT DEFAULT NULL,
+  `triggered_by` INT UNSIGNED DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_started_at` (`started_at`),
+  KEY `idx_status` (`status`),
+  FOREIGN KEY (`triggered_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================
