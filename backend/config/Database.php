@@ -38,6 +38,9 @@ class Database
 
                 self::$instance->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
                 self::$instance->exec("SET time_zone = '+00:00'");
+                // App queries were written against MariaDB's lenient GROUP BY;
+                // MySQL 8+ enables ONLY_FULL_GROUP_BY by default and rejects them
+                self::$instance->exec("SET SESSION sql_mode = (SELECT REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''))");
             } catch (PDOException $e) {
                 Logger::error('Database connection failed: ' . $e->getMessage());
                 Response::json(['error' => 'Database connection failed'], 503);
