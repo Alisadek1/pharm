@@ -1,6 +1,8 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
-export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel = 'Delete', loading }) {
+export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel, loading }) {
+  const { t } = useTranslation()
   if (!open) return null
 
   return (
@@ -17,13 +19,13 @@ export default function ConfirmDialog({ open, onClose, onConfirm, title, message
           </div>
         </div>
         <div className="flex gap-3 mt-6 justify-end">
-          <button onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
+          <button onClick={onClose} className="btn-secondary btn-sm">{t('common.cancel')}</button>
           <button
             onClick={onConfirm}
             disabled={loading}
             className="btn-danger btn-sm"
           >
-            {loading ? 'Processing...' : confirmLabel}
+            {loading ? t('common.processing') : (confirmLabel || t('common.delete'))}
           </button>
         </div>
       </div>

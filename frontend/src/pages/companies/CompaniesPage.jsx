@@ -8,55 +8,58 @@ import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 function CompanyForm({ initial, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState(initial || { name: '', name_ar: '', country: '', phone: '', email: '', address: '', website: '', is_active: true })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error('Name required'); onSubmit(form) }} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error(t('companies.required_name')); onSubmit(form) }} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Name (EN) *</label>
+          <label className="label">{t('companies.name_en')}</label>
           <input value={form.name} onChange={e => set('name', e.target.value)} className="input" required />
         </div>
         <div>
-          <label className="label">Name (AR)</label>
+          <label className="label">{t('companies.name_ar')}</label>
           <input value={form.name_ar} onChange={e => set('name_ar', e.target.value)} className="input" dir="rtl" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Country</label>
+          <label className="label">{t('companies.country')}</label>
           <input value={form.country} onChange={e => set('country', e.target.value)} className="input" placeholder="Saudi Arabia" />
         </div>
         <div>
-          <label className="label">Phone</label>
+          <label className="label">{t('common.phone')}</label>
           <input value={form.phone} onChange={e => set('phone', e.target.value)} className="input" />
         </div>
       </div>
       <div>
-        <label className="label">Email</label>
+        <label className="label">{t('common.email')}</label>
         <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="input" />
       </div>
       <div>
-        <label className="label">Website</label>
+        <label className="label">{t('companies.website')}</label>
         <input value={form.website} onChange={e => set('website', e.target.value)} className="input" placeholder="https://..." />
       </div>
       <div>
-        <label className="label">Address</label>
+        <label className="label">{t('common.address')}</label>
         <textarea value={form.address} onChange={e => set('address', e.target.value)} rows={2} className="input resize-none" />
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="active" checked={!!form.is_active} onChange={e => set('is_active', e.target.checked)} className="rounded" />
-        <label htmlFor="active" className="text-sm">Active</label>
+        <label htmlFor="active" className="text-sm">{t('common.active')}</label>
       </div>
-      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? 'Saving...' : (initial ? 'Update' : 'Create Company')}</button>
+      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? t('common.saving') : (initial ? t('companies.update') : t('companies.add'))}</button>
     </form>
   )
 }
 
 export default function CompaniesPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, put, del, loading } = useApi()
   const pg = usePagination()
@@ -77,15 +80,20 @@ export default function CompaniesPage() {
   const handleSave = async (form) => {
     setSaving(true)
     try {
-      editItem ? await put(`/api/companies/${editItem.id}`, form) : await post('/api/companies', form)
-      toast.success(editItem ? 'Updated' : 'Created')
+      if (editItem) {
+        await put(`/api/companies/${editItem.id}`, form)
+        toast.success(t('companies.updated'))
+      } else {
+        await post('/api/companies', form)
+        toast.success(t('companies.added'))
+      }
       setModal(null); setEditItem(null); load()
     } catch {} finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     setDeleting(true)
-    try { await del(`/api/companies/${delItem.id}`); toast.success('Deleted'); setDelItem(null); load() }
+    try { await del(`/api/companies/${delItem.id}`); toast.success(t('companies.deleted')); setDelItem(null); load() }
     catch {} finally { setDeleting(false) }
   }
 
@@ -93,25 +101,36 @@ export default function CompaniesPage() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Companies</h1>
-          <p className="text-sm text-gray-500">{pg.total} manufacturers</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('companies.title')}</h1>
+          <p className="text-sm text-gray-500">{t('companies.count', { count: pg.total })}</p>
         </div>
         {can('companies.create') && (
           <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary">
-            <PlusIcon className="w-4 h-4" /> Add Company
+            <PlusIcon className="w-4 h-4" /> {t('companies.add')}
           </button>
         )}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder="Search companies..." className="max-w-xs" />
+          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-xs" />
         </div>
 
         {loading && !rows.length ? <TableSkeleton rows={5} cols={6} /> : (
           <div className="table-container">
             <table className="table">
-              <thead><tr><th>#</th><th>Company</th><th>Country</th><th>Phone</th><th>Email</th><th>Medicines</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t('companies.col_name')}</th>
+                  <th>{t('companies.col_country')}</th>
+                  <th>{t('common.phone')}</th>
+                  <th>{t('common.email')}</th>
+                  <th>{t('companies.col_medicines')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {rows.map((row, i) => (
                   <tr key={row.id}>
@@ -131,7 +150,7 @@ export default function CompaniesPage() {
                     <td>{row.phone || '—'}</td>
                     <td>{row.email || '—'}</td>
                     <td><span className="badge badge-blue">{row.medicine_count}</span></td>
-                    <td><span className={row.is_active ? 'badge badge-green' : 'badge badge-gray'}>{row.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td><span className={row.is_active ? 'badge badge-green' : 'badge badge-gray'}>{row.is_active ? t('common.active') : t('common.inactive')}</span></td>
                     <td>
                       <div className="flex gap-1">
                         {can('companies.edit') && <button onClick={() => { setEditItem(row); setModal('form') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-600"><PencilIcon className="w-4 h-4" /></button>}
@@ -140,7 +159,7 @@ export default function CompaniesPage() {
                     </td>
                   </tr>
                 ))}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">No companies found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('companies.no_companies')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -148,10 +167,17 @@ export default function CompaniesPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? 'Edit Company' : 'New Company'}>
+      <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? t('companies.update') : t('companies.add')}>
         <CompanyForm initial={editItem} onSubmit={handleSave} loading={saving} />
       </Modal>
-      <ConfirmDialog open={!!delItem} onClose={() => setDelItem(null)} onConfirm={handleDelete} loading={deleting} title="Delete Company" message={`Delete "${delItem?.name}"?`} />
+      <ConfirmDialog
+        open={!!delItem}
+        onClose={() => setDelItem(null)}
+        onConfirm={handleDelete}
+        loading={deleting}
+        title={t('companies.delete_title')}
+        message={t('companies.delete_confirm', { name: delItem?.name })}
+      />
     </div>
   )
 }

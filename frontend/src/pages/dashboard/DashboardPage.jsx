@@ -9,10 +9,12 @@ import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
 import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 import StatCard from '../../components/ui/StatCard'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { get, loading } = useApi()
   const [data, setData]   = useState(null)
   const [charts, setCharts] = useState(null)
@@ -45,7 +47,7 @@ export default function DashboardPage() {
       {/* Page title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('dashboard.title')}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
       </div>
@@ -56,19 +58,19 @@ export default function DashboardPage() {
           {st.low_stock_count > 0 && (
             <Link to="/inventory?filter=low_stock" className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors">
               <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{st.low_stock_count} Low Stock Items</span>
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{t('dashboard.low_stock_alert', { count: st.low_stock_count })}</span>
             </Link>
           )}
           {st.expired_count > 0 && (
             <Link to="/batches?filter=expired" className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors">
               <ArchiveBoxIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-red-800 dark:text-red-300">{st.expired_count} Expired Products</span>
+              <span className="text-sm font-medium text-red-800 dark:text-red-300">{t('dashboard.expired_alert', { count: st.expired_count })}</span>
             </Link>
           )}
           {st.near_expiry_count > 0 && (
             <Link to="/batches?filter=near_expiry" className="flex items-center gap-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors">
               <ClockIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-orange-800 dark:text-orange-300">{st.near_expiry_count} Near Expiry</span>
+              <span className="text-sm font-medium text-orange-800 dark:text-orange-300">{t('dashboard.near_expiry_alert', { count: st.near_expiry_count })}</span>
             </Link>
           )}
         </div>
@@ -77,30 +79,30 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Today's Revenue"
+          title={t('dashboard.today_revenue')}
           value={formatCurrency(st.today_sales?.revenue)}
-          subtitle={`${st.today_sales?.count || 0} invoices`}
+          subtitle={`${st.today_sales?.count || 0} ${t('dashboard.invoices')}`}
           icon={CurrencyDollarIcon}
           color="blue"
         />
         <StatCard
-          title="Today's Profit"
+          title={t('dashboard.today_profit')}
           value={formatCurrency(st.today_profit)}
-          subtitle="After cost of goods"
+          subtitle={t('dashboard.after_cost')}
           icon={ChartBarIcon}
           color="green"
         />
         <StatCard
-          title="Today's Purchases"
+          title={t('dashboard.today_purchases')}
           value={formatCurrency(st.today_purchases?.amount)}
-          subtitle={`${st.today_purchases?.count || 0} orders`}
+          subtitle={`${st.today_purchases?.count || 0} ${t('dashboard.orders')}`}
           icon={ShoppingCartIcon}
           color="yellow"
         />
         <StatCard
-          title="Monthly Revenue"
+          title={t('dashboard.monthly_revenue')}
           value={formatCurrency(st.monthly_sales?.revenue)}
-          subtitle={`${st.monthly_sales?.count || 0} invoices`}
+          subtitle={`${st.monthly_sales?.count || 0} ${t('dashboard.invoices')}`}
           icon={UsersIcon}
           color="purple"
         />
@@ -111,7 +113,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sales chart */}
           <div className="card p-5 lg:col-span-2">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Monthly Sales (12 months)</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.monthly_sales_chart')}</h3>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={charts.monthly_sales}>
                 <defs>
@@ -131,7 +133,7 @@ export default function DashboardPage() {
 
           {/* Payment methods pie */}
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Payment Methods</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.payment_methods')}</h3>
             {charts.payment_methods?.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -141,12 +143,12 @@ export default function DashboardPage() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <p className="text-gray-400 text-sm text-center mt-8">No data this month</p>}
+            ) : <p className="text-gray-400 text-sm text-center mt-8">{t('dashboard.no_data_month')}</p>}
           </div>
 
           {/* Top medicines */}
           <div className="card p-5 lg:col-span-2">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Top Selling (30 days)</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.top_selling')}</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={charts.top_medicines?.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -160,7 +162,7 @@ export default function DashboardPage() {
 
           {/* Daily sales */}
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Daily Sales This Month</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.daily_sales')}</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={charts.daily_sales}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -177,20 +179,20 @@ export default function DashboardPage() {
       {/* Recent sales */}
       <div className="card">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">Recent Sales</h3>
-          <Link to="/sales" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">View all →</Link>
+          <h3 className="font-semibold text-gray-900 dark:text-white">{t('dashboard.recent_sales')}</h3>
+          <Link to="/sales" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">{t('common.view_all')}</Link>
         </div>
         <div className="table-container">
           <table className="table">
             <thead>
               <tr>
-                <th>Invoice</th>
-                <th>Customer</th>
-                <th>Cashier</th>
-                <th>Total</th>
-                <th>Payment</th>
-                <th>Date</th>
-                <th>Status</th>
+                <th>{t('dashboard.col_invoice')}</th>
+                <th>{t('dashboard.col_customer')}</th>
+                <th>{t('dashboard.col_cashier')}</th>
+                <th>{t('dashboard.col_total')}</th>
+                <th>{t('dashboard.col_payment')}</th>
+                <th>{t('dashboard.col_date')}</th>
+                <th>{t('dashboard.col_status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -203,7 +205,7 @@ export default function DashboardPage() {
                         {sale.invoice_number}
                       </Link>
                     </td>
-                    <td>{sale.customer_name || <span className="text-gray-400">Walk-in</span>}</td>
+                    <td>{sale.customer_name || <span className="text-gray-400">{t('dashboard.walk_in')}</span>}</td>
                     <td>{sale.cashier_name}</td>
                     <td className="font-semibold">{formatCurrency(sale.total)}</td>
                     <td className="capitalize">{sale.payment_method}</td>
@@ -213,7 +215,7 @@ export default function DashboardPage() {
                 )
               })}
               {(!data?.recent_sales?.length) && (
-                <tr><td colSpan={7} className="text-center text-gray-400 py-8">No recent sales today</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-400 py-8">{t('dashboard.no_recent_sales')}</td></tr>
               )}
             </tbody>
           </table>

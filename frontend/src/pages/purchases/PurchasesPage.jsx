@@ -9,8 +9,10 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, formatDate, formatDateTime, statusLabel } from '../../utils/format'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState({
     supplier_id: '', purchase_date: new Date().toISOString().split('T')[0],
     discount_type: 'fixed', discount_value: 0, tax_rate: 15, paid_amount: '',
@@ -39,26 +41,26 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Supplier</label>
+          <label className="label">{t('purchases.supplier')}</label>
           <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className="input">
             <option value="">— Select Supplier —</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
-        <div><label className="label">Purchase Date *</label><input type="date" value={form.purchase_date} onChange={e => set('purchase_date', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('purchases.purchase_date')}</label><input type="date" value={form.purchase_date} onChange={e => set('purchase_date', e.target.value)} className="input" required /></div>
       </div>
 
       {/* Items */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="label mb-0">Items</label>
-          <button type="button" onClick={addItem} className="btn-secondary btn-sm"><PlusIcon className="w-3.5 h-3.5" /> Add Row</button>
+          <label className="label mb-0">{t('purchases.items')}</label>
+          <button type="button" onClick={addItem} className="btn-secondary btn-sm"><PlusIcon className="w-3.5 h-3.5" /> {t('purchases.add_row')}</button>
         </div>
         <div className="space-y-2">
           {items.map((item, idx) => (
             <div key={idx} className="grid grid-cols-8 gap-2 items-end p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
               <div className="col-span-2">
-                {idx === 0 && <label className="label text-xs">Medicine</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.medicine')}</label>}
                 <select value={item.medicine_id} onChange={e => {
                   const med = medicines.find(m => m.id == e.target.value)
                   setItem(idx, 'medicine_id', e.target.value)
@@ -69,28 +71,28 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
                 </select>
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">Batch #</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.batch')}</label>}
                 <input value={item.batch_number} onChange={e => setItem(idx, 'batch_number', e.target.value)} className="input text-xs font-mono" placeholder="B001" />
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">Expiry</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.expiry')}</label>}
                 <input type="date" value={item.expiry_date} onChange={e => setItem(idx, 'expiry_date', e.target.value)} className="input text-xs" />
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">Qty</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.qty')}</label>}
                 <input type="number" min="1" value={item.quantity} onChange={e => setItem(idx, 'quantity', e.target.value)} className="input text-xs" />
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">Pharmacist Price</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.pharmacist_price')}</label>}
                 <input type="number" step="0.001" min="0" value={item.purchase_price} onChange={e => setItem(idx, 'purchase_price', e.target.value)} className="input text-xs" />
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">Public Price</label>}
+                {idx === 0 && <label className="label text-xs">{t('purchases.public_price')}</label>}
                 <input type="number" step="0.001" min="0" value={item.public_price} onChange={e => setItem(idx, 'public_price', e.target.value)} className="input text-xs" placeholder="0.000" />
               </div>
               <div className="flex gap-1 items-end">
                 <div className="flex-1">
-                  {idx === 0 && <label className="label text-xs">Sell Price</label>}
+                  {idx === 0 && <label className="label text-xs">{t('purchases.sell_price')}</label>}
                   <input type="number" step="0.001" min="0" value={item.selling_price} onChange={e => setItem(idx, 'selling_price', e.target.value)} className="input text-xs" />
                 </div>
                 {items.length > 1 && (
@@ -105,7 +107,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
       {/* Totals */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="label">Discount</label>
+          <label className="label">{t('purchases.discount')}</label>
           <div className="flex gap-1">
             <select value={form.discount_type} onChange={e => set('discount_type', e.target.value)} className="input w-24">
               <option value="fixed">Fixed</option>
@@ -114,9 +116,9 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
             <input type="number" min="0" step="0.01" value={form.discount_value} onChange={e => set('discount_value', e.target.value)} className="input" />
           </div>
         </div>
-        <div><label className="label">Tax Rate (%)</label><input type="number" min="0" max="100" value={form.tax_rate} onChange={e => set('tax_rate', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('purchases.tax_rate')}</label><input type="number" min="0" max="100" value={form.tax_rate} onChange={e => set('tax_rate', e.target.value)} className="input" /></div>
         <div>
-          <label className="label">Status</label>
+          <label className="label">{t('common.status')}</label>
           <select value={form.status} onChange={e => set('status', e.target.value)} className="input">
             <option value="received">Received</option>
             <option value="ordered">Ordered</option>
@@ -126,25 +128,26 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
 
       {/* Summary */}
       <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-1.5 text-sm">
-        <div className="flex justify-between"><span className="text-gray-500">Subtotal:</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">Discount:</span><span className="text-red-500">− {formatCurrency(discAmt)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">Tax ({form.tax_rate}%):</span><span>{formatCurrency(taxAmt)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">{t('common.subtotal')}:</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">{t('common.discount')}:</span><span className="text-red-500">− {formatCurrency(discAmt)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">{t('common.tax')} ({form.tax_rate}%):</span><span>{formatCurrency(taxAmt)}</span></div>
         <div className="flex justify-between font-bold text-base pt-1 border-t border-gray-200 dark:border-gray-600">
-          <span>Total:</span><span>{formatCurrency(total)}</span>
+          <span>{t('common.total')}:</span><span>{formatCurrency(total)}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Paid Amount</label><input type="number" step="0.001" min="0" value={form.paid_amount} onChange={e => set('paid_amount', e.target.value)} className="input" placeholder={total.toFixed(3)} /></div>
-        <div><label className="label">Notes</label><input value={form.notes} onChange={e => set('notes', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('purchases.paid_amount')}</label><input type="number" step="0.001" min="0" value={form.paid_amount} onChange={e => set('paid_amount', e.target.value)} className="input" placeholder={total.toFixed(3)} /></div>
+        <div><label className="label">{t('common.notes')}</label><input value={form.notes} onChange={e => set('notes', e.target.value)} className="input" /></div>
       </div>
 
-      <button type="submit" disabled={loading} className="btn-primary w-full btn-lg">{loading ? 'Processing...' : 'Create Purchase Order'}</button>
+      <button type="submit" disabled={loading} className="btn-primary w-full btn-lg">{loading ? t('common.processing') : t('purchases.create_btn')}</button>
     </form>
   )
 }
 
 export default function PurchasesPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, del, loading } = useApi()
   const pg = usePagination()
@@ -182,33 +185,47 @@ export default function PurchasesPage() {
     setSaving(true)
     try {
       await post('/api/purchases', form)
-      toast.success('Purchase created')
+      toast.success(t('purchases.created'))
       setModal(null); load()
     } catch {} finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     setDeleting(true)
-    try { await del(`/api/purchases/${delItem.id}`); toast.success('Deleted'); setDelItem(null); load() }
+    try { await del(`/api/purchases/${delItem.id}`); toast.success(t('common.delete')); setDelItem(null); load() }
     catch {} finally { setDeleting(false) }
   }
 
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Purchases</h1><p className="text-sm text-gray-500">{pg.total} purchase orders</p></div>
-        {can('purchases.create') && <button onClick={() => setModal('form')} className="btn-primary"><PlusIcon className="w-4 h-4" /> New Purchase</button>}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('purchases.title')}</h1>
+          <p className="text-sm text-gray-500">{t('purchases.count', { count: pg.total })}</p>
+        </div>
+        {can('purchases.create') && <button onClick={() => setModal('form')} className="btn-primary"><PlusIcon className="w-4 h-4" /> {t('purchases.add')}</button>}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder="Search invoice number..." className="max-w-xs" />
+          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-xs" />
         </div>
 
         {loading && !rows.length ? <TableSkeleton rows={5} cols={7} /> : (
           <div className="table-container">
             <table className="table">
-              <thead><tr><th>Invoice</th><th>Supplier</th><th>Date</th><th>Total</th><th>Paid</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>{t('purchases.col_reference')}</th>
+                  <th>{t('purchases.col_supplier')}</th>
+                  <th>{t('purchases.col_date')}</th>
+                  <th>{t('purchases.col_total')}</th>
+                  <th>{t('purchases.col_paid')}</th>
+                  <th>{t('purchases.col_status')}</th>
+                  <th>Payment</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {rows.map(row => {
                   const s = statusLabel(row.status)
@@ -231,7 +248,7 @@ export default function PurchasesPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">No purchases found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('purchases.no_purchases')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -239,7 +256,7 @@ export default function PurchasesPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title="New Purchase Order" size="xl">
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={t('purchases.add')} size="xl">
         <PurchaseForm suppliers={suppliers} medicines={medicines} onSubmit={handleSave} loading={saving} />
       </Modal>
 
@@ -253,7 +270,7 @@ export default function PurchasesPage() {
             </div>
             <div className="table-container">
               <table className="table">
-                <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Pharmacist Price</th><th>Total</th></tr></thead>
+                <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>{t('purchases.pharmacist_price')}</th><th>{t('common.total')}</th></tr></thead>
                 <tbody>
                   {(viewItem.items || []).map((it, i) => (
                     <tr key={i}>

@@ -11,7 +11,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 const REPORT_TYPES = [
   { id: 'sales_daily',      label: 'Daily Sales',         icon: ChartBarIcon,        color: 'blue' },
@@ -382,6 +382,7 @@ function renderReport(type, data) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const { get, loading } = useApi()
   const [activeType, setActiveType] = useState(null)
   const [dateFrom, setDateFrom] = useState(() => {
@@ -416,17 +417,17 @@ export default function ReportsPage() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports</h1>
-          <p className="text-sm text-gray-500">Analytics &amp; business intelligence</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('reports.title')}</h1>
+          <p className="text-sm text-gray-500">{t('reports.subtitle')}</p>
         </div>
         {activeType && (
           <div className="flex items-center gap-2 flex-wrap">
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="input text-sm" />
             <span className="text-gray-400">to</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="input text-sm" />
-            <button onClick={() => runReport()} className="btn-primary btn-sm">Run Report</button>
+            <button onClick={() => runReport()} className="btn-primary btn-sm">{t('reports.run')}</button>
             <button onClick={handleExport} disabled={exporting || !reportData} className="btn-secondary btn-sm">
-              <ArrowDownTrayIcon className="w-4 h-4" /> Export CSV
+              <ArrowDownTrayIcon className="w-4 h-4" /> {t('common.export')}
             </button>
           </div>
         )}
@@ -470,7 +471,7 @@ export default function ReportsPage() {
           ) : (
             <div className="text-center text-gray-400 py-12">
               <DocumentChartBarIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Select a date range and run the report</p>
+              <p>{t('reports.select_range')}</p>
             </div>
           )}
         </div>
@@ -479,8 +480,8 @@ export default function ReportsPage() {
       {!activeType && (
         <div className="text-center text-gray-400 py-16">
           <ChartBarIcon className="w-16 h-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium">Select a report type above</p>
-          <p className="text-sm">Choose from 12 report types to analyze your pharmacy data</p>
+          <p className="text-lg font-medium">{t('reports.select_type')}</p>
+          <p className="text-sm">{t('reports.select_type_hint')}</p>
         </div>
       )}
     </div>

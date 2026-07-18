@@ -9,8 +9,10 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, formatDate, expiryStatus } from '../../utils/format'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState(initial || {
     medicine_id: '', supplier_id: '', batch_number: '', manufacturing_date: '',
     expiry_date: '', purchase_price: '', selling_price: '', quantity: '', notes: '',
@@ -28,16 +30,16 @@ function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="label">Medicine *</label>
+        <label className="label">{t('batches.col_medicine')} *</label>
         <select value={form.medicine_id} onChange={e => set('medicine_id', e.target.value)} className="input" required disabled={!!initial}>
           <option value="">— Select Medicine —</option>
           {medicines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Batch Number *</label><input value={form.batch_number} onChange={e => set('batch_number', e.target.value)} className="input font-mono" required disabled={!!initial} /></div>
+        <div><label className="label">{t('batches.col_batch')} *</label><input value={form.batch_number} onChange={e => set('batch_number', e.target.value)} className="input font-mono" required disabled={!!initial} /></div>
         <div>
-          <label className="label">Supplier</label>
+          <label className="label">{t('batches.col_supplier')}</label>
           <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className="input">
             <option value="">— None —</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -46,20 +48,21 @@ function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="label">Manufacturing Date</label><input type="date" value={form.manufacturing_date} onChange={e => set('manufacturing_date', e.target.value)} className="input" /></div>
-        <div><label className="label">Expiry Date *</label><input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('batches.col_expiry')} *</label><input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} className="input" required /></div>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <div><label className="label">Pharmacist Price *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">Public Price *</label><input type="number" step="0.001" min="0" value={form.selling_price} onChange={e => set('selling_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">Quantity {initial ? '' : '*'}</label><input type="number" min="0" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required={!initial} /></div>
+        <div><label className="label">{t('batches.col_pharmacist_price')} *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('batches.col_sell_price')} *</label><input type="number" step="0.001" min="0" value={form.selling_price} onChange={e => set('selling_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('batches.col_quantity')} {initial ? '' : '*'}</label><input type="number" min="0" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required={!initial} /></div>
       </div>
-      <div><label className="label">Notes</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
-      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? 'Saving...' : (initial ? 'Update Batch' : 'Add Batch')}</button>
+      <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
+      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? t('common.saving') : (initial ? 'Update Batch' : t('batches.title').replace('es', '').trim() + ' Added')}</button>
     </form>
   )
 }
 
 export default function BatchesPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, put, del, loading } = useApi()
   const pg = usePagination()
@@ -93,30 +96,41 @@ export default function BatchesPage() {
     setSaving(true)
     try {
       editItem ? await put(`/api/batches/${editItem.id}`, form) : await post('/api/batches', form)
-      toast.success(editItem ? 'Updated' : 'Batch added')
+      toast.success(editItem ? t('common.save') : 'Batch added')
       setModal(null); setEditItem(null); load()
     } catch {} finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     setDeleting(true)
-    try { await del(`/api/batches/${delItem.id}`); toast.success('Deleted'); setDelItem(null); load() }
+    try { await del(`/api/batches/${delItem.id}`); toast.success(t('common.delete')); setDelItem(null); load() }
     catch {} finally { setDeleting(false) }
   }
+
+  const FILTERS = [
+    { value: '', label: t('batches.filter_all') },
+    { value: 'active', label: t('common.active') },
+    { value: 'near_expiry', label: t('batches.filter_expiring') },
+    { value: 'expired', label: t('batches.filter_expired') },
+    { value: 'out_of_stock', label: t('batches.filter_low') },
+  ]
 
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Batch Management</h1><p className="text-sm text-gray-500">{pg.total} batches</p></div>
-        {can('batches.create') && <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary"><PlusIcon className="w-4 h-4" /> Add Batch</button>}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('batches.title')}</h1>
+          <p className="text-sm text-gray-500">{t('batches.count', { count: pg.total })}</p>
+        </div>
+        {can('batches.create') && <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary"><PlusIcon className="w-4 h-4" /> {t('common.add')}</button>}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex gap-2 flex-wrap">
-          {['', 'active', 'near_expiry', 'expired', 'out_of_stock'].map(s => (
-            <button key={s} onClick={() => { setStatusFilter(s); pg.setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-              {s === '' ? 'All' : s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+          {FILTERS.map(f => (
+            <button key={f.value} onClick={() => { setStatusFilter(f.value); pg.setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === f.value ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+              {f.label}
             </button>
           ))}
         </div>
@@ -125,7 +139,18 @@ export default function BatchesPage() {
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>Batch #</th><th>Medicine</th><th>Supplier</th><th>Mfg Date</th><th>Expiry</th><th>Pharmacist Price</th><th>Public Price</th><th>Qty</th><th>Status</th><th>Actions</th></tr>
+                <tr>
+                  <th>{t('batches.col_batch')}</th>
+                  <th>{t('batches.col_medicine')}</th>
+                  <th>{t('batches.col_supplier')}</th>
+                  <th>Mfg Date</th>
+                  <th>{t('batches.col_expiry')}</th>
+                  <th>{t('batches.col_pharmacist_price')}</th>
+                  <th>{t('batches.col_sell_price')}</th>
+                  <th>{t('batches.col_quantity')}</th>
+                  <th>{t('batches.col_status')}</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
               </thead>
               <tbody>
                 {rows.map(row => {
@@ -161,7 +186,7 @@ export default function BatchesPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={10} className="text-center text-gray-400 py-12">No batches found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={10} className="text-center text-gray-400 py-12">{t('batches.no_batches')}</td></tr>}
               </tbody>
             </table>
           </div>

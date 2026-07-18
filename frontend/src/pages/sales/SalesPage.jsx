@@ -7,8 +7,10 @@ import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
+import { useTranslation } from 'react-i18next'
 
 export default function SalesPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, loading } = useApi()
   const pg = usePagination()
@@ -32,27 +34,30 @@ export default function SalesPage() {
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales</h1><p className="text-sm text-gray-500">{pg.total} sales</p></div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sales.title')}</h1>
+          <p className="text-sm text-gray-500">{t('sales.count', { count: pg.total })}</p>
+        </div>
         {can('pos.access') && (
-          <Link to="/pos" className="btn-primary">New Sale (POS)</Link>
+          <Link to="/pos" className="btn-primary">{t('sales.new_sale')}</Link>
         )}
       </div>
 
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-3 items-end">
-        <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder="Search invoice, customer..." className="max-w-xs" />
+        <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-xs" />
         <div>
-          <label className="label text-xs">From</label>
+          <label className="label text-xs">{t('reports.date_from')}</label>
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); pg.setPage(1) }} className="input text-sm" />
         </div>
         <div>
-          <label className="label text-xs">To</label>
+          <label className="label text-xs">{t('reports.date_to')}</label>
           <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); pg.setPage(1) }} className="input text-sm" />
         </div>
         <div>
-          <label className="label text-xs">Payment</label>
+          <label className="label text-xs">{t('sales.col_payment')}</label>
           <select value={payFilter} onChange={e => { setPayFilter(e.target.value); pg.setPage(1) }} className="input text-sm">
-            <option value="">All</option>
+            <option value="">{t('batches.filter_all')}</option>
             <option value="cash">Cash</option>
             <option value="visa">Card</option>
             <option value="wallet">Wallet</option>
@@ -60,7 +65,7 @@ export default function SalesPage() {
           </select>
         </div>
         {(search || dateFrom || dateTo || payFilter) && (
-          <button onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPayFilter('') }} className="btn-secondary btn-sm self-end">Clear</button>
+          <button onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPayFilter('') }} className="btn-secondary btn-sm self-end">{t('common.clear')}</button>
         )}
       </div>
 
@@ -69,7 +74,16 @@ export default function SalesPage() {
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr>
+                <tr>
+                  <th>{t('sales.col_invoice')}</th>
+                  <th>{t('sales.col_customer')}</th>
+                  <th>{t('common.date')}</th>
+                  <th>{t('sales.col_items')}</th>
+                  <th>{t('common.total')}</th>
+                  <th>{t('sales.col_payment')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
               </thead>
               <tbody>
                 {rows.map(row => {
@@ -77,7 +91,7 @@ export default function SalesPage() {
                   return (
                     <tr key={row.id}>
                       <td className="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400">{row.invoice_number}</td>
-                      <td>{row.customer_name || <span className="text-gray-400">Walk-in</span>}</td>
+                      <td>{row.customer_name || <span className="text-gray-400">{t('sales.walk_in')}</span>}</td>
                       <td className="text-sm">{formatDateTime(row.created_at)}</td>
                       <td className="text-center">{row.items_count}</td>
                       <td className="font-semibold">{formatCurrency(row.total)}</td>
@@ -100,12 +114,12 @@ export default function SalesPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">No sales found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('sales.no_sales')}</td></tr>}
               </tbody>
               {rows.length > 0 && (
                 <tfoot>
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
-                    <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-gray-500">Page Total</td>
+                    <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-gray-500">{t('sales.page_total')}</td>
                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{formatCurrency(totalRevenue)}</td>
                     <td colSpan={3} />
                   </tr>

@@ -9,6 +9,7 @@ import { TableSkeleton } from '../components/ui/Skeleton'
 import { formatDateTime } from '../utils/format'
 import toast from 'react-hot-toast'
 import api from '../services/api'
+import { useTranslation } from 'react-i18next'
 
 const TYPE_META = {
   low_stock:   { icon: ExclamationTriangleIcon, color: 'amber',  label: 'Low Stock' },
@@ -32,6 +33,7 @@ const ICON_BG = {
 }
 
 export default function NotificationsPage() {
+  const { t } = useTranslation()
   const { get, loading } = useApi()
   const pg = usePagination(1, 20)
   const [rows, setRows] = useState([])
@@ -66,7 +68,7 @@ export default function NotificationsPage() {
     try {
       await api.patch('/api/notifications/read-all')
       setRows(prev => prev.map(r => ({ ...r, is_read: true })))
-      toast.success('All notifications marked as read')
+      toast.success(t('notifications.marked_all_read'))
     } catch { toast.error('Failed') }
     finally { setMarkingAll(false) }
   }
@@ -79,20 +81,20 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <BellIcon className="w-7 h-7" />
-            Notifications
+            {t('notifications.title')}
           </h1>
           <p className="text-sm text-gray-500">{pg.total} total · {unreadCount} unread on this page</p>
         </div>
         {unreadCount > 0 && (
           <button onClick={markAllRead} disabled={markingAll} className="btn-secondary btn-sm">
-            <CheckIcon className="w-4 h-4" /> {markingAll ? 'Marking...' : 'Mark all read'}
+            <CheckIcon className="w-4 h-4" /> {markingAll ? t('common.processing') : t('notifications.mark_all_read')}
           </button>
         )}
       </div>
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        {[['all', 'All'], ['unread', 'Unread']].map(([v, l]) => (
+        {[['all', t('batches.filter_all')], ['unread', t('notifications.unread')]].map(([v, l]) => (
           <button key={v} onClick={() => { setFilter(v); pg.setPage(1) }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === v ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
             {l}
@@ -124,8 +126,8 @@ export default function NotificationsPage() {
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-gray-300 dark:text-gray-600">
             <BellIcon className="w-12 h-12 mb-3" />
-            <p className="font-medium">No notifications</p>
-            <p className="text-sm">You're all caught up!</p>
+            <p className="font-medium">{t('notifications.no_notifications')}</p>
+            <p className="text-sm">{t('notifications.all_caught_up')}</p>
           </div>
         ) : (
           rows.map(notif => {
@@ -150,11 +152,11 @@ export default function NotificationsPage() {
                     </p>
                     <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       {!notif.is_read && (
-                        <button onClick={() => markRead(notif.id)} className="p-1 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-400 hover:text-green-500" title="Mark read">
+                        <button onClick={() => markRead(notif.id)} className="p-1 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-400 hover:text-green-500" title={t('notifications.mark_read')}>
                           <CheckIcon className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <button onClick={() => deleteNotif(notif.id)} className="p-1 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-400 hover:text-red-500" title="Delete">
+                      <button onClick={() => deleteNotif(notif.id)} className="p-1 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-400 hover:text-red-500" title={t('common.delete')}>
                         <TrashIcon className="w-3.5 h-3.5" />
                       </button>
                     </div>

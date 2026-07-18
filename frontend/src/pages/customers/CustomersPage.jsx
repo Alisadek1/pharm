@@ -9,38 +9,41 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, formatDateTime, formatDate } from '../../utils/format'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 function CustomerForm({ initial, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState(initial || { name: '', phone: '', email: '', date_of_birth: '', gender: '', address: '', id_number: '', notes: '' })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error('Name required'); onSubmit(form) }} className="space-y-4">
-      <div><label className="label">Full Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
+    <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error(t('customers.required_name')); onSubmit(form) }} className="space-y-4">
+      <div><label className="label">{t('customers.full_name')} *</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Phone</label><input value={form.phone} onChange={e => set('phone', e.target.value)} className="input" /></div>
-        <div><label className="label">Email</label><input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('common.phone')}</label><input value={form.phone} onChange={e => set('phone', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('common.email')}</label><input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="input" /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Date of Birth</label><input type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('customers.dob')}</label><input type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} className="input" /></div>
         <div>
-          <label className="label">Gender</label>
+          <label className="label">{t('customers.gender')}</label>
           <select value={form.gender} onChange={e => set('gender', e.target.value)} className="input">
             <option value="">Select...</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
+            <option value="male">{t('customers.male')}</option>
+            <option value="female">{t('customers.female')}</option>
+            <option value="other">{t('customers.other')}</option>
           </select>
         </div>
       </div>
-      <div><label className="label">ID Number</label><input value={form.id_number} onChange={e => set('id_number', e.target.value)} className="input" /></div>
-      <div><label className="label">Address</label><textarea value={form.address} onChange={e => set('address', e.target.value)} rows={2} className="input resize-none" /></div>
-      <div><label className="label">Notes</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
-      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? 'Saving...' : (initial ? 'Update Customer' : 'Add Customer')}</button>
+      <div><label className="label">{t('customers.id_number')}</label><input value={form.id_number} onChange={e => set('id_number', e.target.value)} className="input" /></div>
+      <div><label className="label">{t('common.address')}</label><textarea value={form.address} onChange={e => set('address', e.target.value)} rows={2} className="input resize-none" /></div>
+      <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
+      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? t('common.saving') : (initial ? t('customers.update') : t('customers.add'))}</button>
     </form>
   )
 }
 
 export default function CustomersPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, put, del, loading } = useApi()
   const pg = usePagination()
@@ -70,33 +73,46 @@ export default function CustomersPage() {
     setSaving(true)
     try {
       editItem ? await put(`/api/customers/${editItem.id}`, form) : await post('/api/customers', form)
-      toast.success(editItem ? 'Updated' : 'Added')
+      toast.success(editItem ? t('customers.updated') : t('customers.added'))
       setModal(null); setEditItem(null); load()
     } catch {} finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     setDeleting(true)
-    try { await del(`/api/customers/${delItem.id}`); toast.success('Customer deactivated'); setDelItem(null); load() }
+    try { await del(`/api/customers/${delItem.id}`); toast.success(t('customers.deactivated')); setDelItem(null); load() }
     catch {} finally { setDeleting(false) }
   }
 
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1><p className="text-sm text-gray-500">{pg.total} customers</p></div>
-        {can('customers.create') && <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary"><PlusIcon className="w-4 h-4" /> Add Customer</button>}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('customers.title')}</h1>
+          <p className="text-sm text-gray-500">{t('customers.count', { count: pg.total })}</p>
+        </div>
+        {can('customers.create') && <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary"><PlusIcon className="w-4 h-4" /> {t('customers.add')}</button>}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder="Search by name, phone, email..." className="max-w-sm" />
+          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-sm" />
         </div>
 
         {loading && !rows.length ? <TableSkeleton rows={5} cols={7} /> : (
           <div className="table-container">
             <table className="table">
-              <thead><tr><th>#</th><th>Customer</th><th>Phone</th><th>Loyalty Points</th><th>Total Purchases</th><th>Invoices</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t('customers.col_name')}</th>
+                  <th>{t('customers.col_phone')}</th>
+                  <th>{t('customers.col_loyalty')}</th>
+                  <th>{t('customers.col_total')}</th>
+                  <th>{t('customers.col_invoices')}</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {rows.map((row, i) => (
                   <tr key={row.id}>
@@ -125,7 +141,7 @@ export default function CustomersPage() {
                     </td>
                   </tr>
                 ))}
-                {!rows.length && !loading && <tr><td colSpan={7} className="text-center text-gray-400 py-12">No customers found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={7} className="text-center text-gray-400 py-12">{t('customers.no_customers')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -133,26 +149,29 @@ export default function CustomersPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? 'Edit Customer' : 'New Customer'}>
+      <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? t('customers.update') : t('customers.add')}>
         <CustomerForm initial={editItem} onSubmit={handleSave} loading={saving} />
       </Modal>
 
-      <Modal open={modal === 'view'} onClose={() => setModal(null)} title={`Customer: ${viewItem?.name}`} size="lg">
+      <Modal open={modal === 'view'} onClose={() => setModal(null)} title={`${t('customers.title')}: ${viewItem?.name}`} size="lg">
         {viewItem && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
               {[
-                ['Phone', viewItem.phone], ['Email', viewItem.email], ['Gender', viewItem.gender],
-                ['Date of Birth', formatDate(viewItem.date_of_birth)],
-                ['Loyalty Points', viewItem.loyalty_points], ['Total Purchases', formatCurrency(viewItem.total_purchases)],
+                [t('common.phone'), viewItem.phone],
+                [t('common.email'), viewItem.email],
+                [t('customers.gender'), viewItem.gender],
+                [t('customers.dob'), formatDate(viewItem.date_of_birth)],
+                [t('customers.col_loyalty'), viewItem.loyalty_points],
+                [t('customers.col_total'), formatCurrency(viewItem.total_purchases)],
               ].map(([label, value]) => (
                 <div key={label}><p className="text-gray-400 text-xs">{label}</p><p className="font-medium">{value || '—'}</p></div>
               ))}
             </div>
-            <h4 className="font-semibold">Purchase History</h4>
+            <h4 className="font-semibold">{t('customers.purchase_history')}</h4>
             <div className="table-container">
               <table className="table">
-                <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Points Earned</th></tr></thead>
+                <thead><tr><th>Invoice</th><th>{t('common.date')}</th><th>{t('common.total')}</th><th>Points Earned</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
@@ -162,7 +181,7 @@ export default function CustomersPage() {
                       <td><span className="badge badge-yellow">+{h.loyalty_points_earned}</span></td>
                     </tr>
                   ))}
-                  {!history.length && <tr><td colSpan={4} className="text-center text-gray-400 py-4">No purchases yet</td></tr>}
+                  {!history.length && <tr><td colSpan={4} className="text-center text-gray-400 py-4">{t('common.no_data')}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -170,7 +189,8 @@ export default function CustomersPage() {
         )}
       </Modal>
 
-      <ConfirmDialog open={!!delItem} onClose={() => setDelItem(null)} onConfirm={handleDelete} loading={deleting} title="Deactivate Customer" message={`Deactivate "${delItem?.name}"?`} confirmLabel="Deactivate" />
+      <ConfirmDialog open={!!delItem} onClose={() => setDelItem(null)} onConfirm={handleDelete} loading={deleting}
+        title={t('customers.deactivate_title')} message={t('customers.deactivate_confirm', { name: delItem?.name })} confirmLabel={t('customers.deactivate_btn')} />
     </div>
   )
 }

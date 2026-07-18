@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { BeakerIcon } from '@heroicons/react/24/outline'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 export default function ForgotPassword() {
+  const { t } = useTranslation()
   const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent]       = useState(false)
@@ -16,7 +18,7 @@ export default function ForgotPassword() {
       await api.post('/api/auth/forgot-password', { email })
       setSent(true)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Request failed')
+      toast.error(err.response?.data?.message || t('auth.request_failed'))
     } finally {
       setLoading(false)
     }
@@ -30,7 +32,7 @@ export default function ForgotPassword() {
             <div className="w-16 h-16 rounded-2xl bg-primary-600 flex items-center justify-center mb-4 shadow-lg">
               <BeakerIcon className="w-9 h-9 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reset Password</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('auth.reset_title')}</h1>
           </div>
 
           {sent ? (
@@ -40,19 +42,19 @@ export default function ForgotPassword() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Check your email for a reset link.</p>
-              <Link to="/login" className="btn-primary w-full mt-2">Back to Login</Link>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">{t('auth.reset_sent')}</p>
+              <Link to="/login" className="btn-primary w-full mt-2">{t('auth.back_to_login')}</Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="label">Email Address</label>
+                <label className="label">{t('common.email')}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="you@example.com" required />
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
-                {loading ? 'Sending...' : 'Send Reset Link'}
+                {loading ? t('auth.sending') : t('auth.send_reset')}
               </button>
-              <Link to="/login" className="block text-center text-sm text-gray-500 hover:text-gray-700">Back to Login</Link>
+              <Link to="/login" className="block text-center text-sm text-gray-500 hover:text-gray-700">{t('auth.back_to_login')}</Link>
             </form>
           )}
         </div>

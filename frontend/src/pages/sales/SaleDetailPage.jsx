@@ -3,12 +3,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { PrinterIcon, ArrowLeftIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, formatDateTime, formatDate, statusLabel } from '../../utils/format'
+import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
+import { useTranslation } from 'react-i18next'
 
 export default function SaleDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const { can } = useAuth()
@@ -23,19 +25,19 @@ export default function SaleDetailPage() {
   const handlePrint = () => window.print()
 
   const handleCancel = async () => {
-    if (!window.confirm('Cancel this sale? Stock will be restored automatically.')) return
+    if (!window.confirm(t('sales.cancel_confirm'))) return
     setCancelling(true)
     try {
       await api.patch(`/api/sales/${id}/cancel`)
-      toast.success('Sale cancelled and stock restored')
+      toast.success(t('sales.cancelled'))
       setSale(s => ({ ...s, status: 'cancelled' }))
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Cancel failed')
+      toast.error(err.response?.data?.message || t('sales.cancel_failed'))
     } finally { setCancelling(false) }
   }
 
   if (loading && !sale) return <div className="p-6"><TableSkeleton rows={8} cols={5} /></div>
-  if (!sale) return <div className="p-6 text-gray-400">Sale not found.</div>
+  if (!sale) return <div className="p-6 text-gray-400">{t('sales.not_found')}</div>
 
   const s = statusLabel(sale.status)
 
@@ -56,16 +58,16 @@ export default function SaleDetailPage() {
           <span className={`badge badge-${s.color} text-sm px-3 py-1`}>{s.label}</span>
           {can('returns.create') && sale.status === 'completed' && (
             <Link to={`/returns?sale_id=${id}`} className="btn-secondary btn-sm">
-              <ArrowUturnLeftIcon className="w-4 h-4" /> Return
+              <ArrowUturnLeftIcon className="w-4 h-4" /> {t('sales.return')}
             </Link>
           )}
           {can('sales.cancel') && sale.status === 'completed' && (
             <button onClick={handleCancel} disabled={cancelling} className="btn-danger btn-sm">
-              {cancelling ? 'Cancelling...' : 'Cancel Sale'}
+              {cancelling ? t('common.processing') : t('sales.cancel_btn')}
             </button>
           )}
           <button onClick={handlePrint} className="btn-secondary btn-sm">
-            <PrinterIcon className="w-4 h-4" /> Print
+            <PrinterIcon className="w-4 h-4" /> {t('common.print')}
           </button>
         </div>
       </div>
@@ -75,10 +77,10 @@ export default function SaleDetailPage() {
         {/* Info cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            ['Customer', sale.customer_name || 'Walk-in Customer'],
-            ['Cashier', sale.cashier_name],
-            ['Payment', sale.payment_method?.toUpperCase()],
-            ['Status', s.label],
+            [t('sales.col_customer'), sale.customer_name || t('sales.walk_in')],
+            [t('sales.cashier'), sale.cashier_name],
+            [t('sales.col_payment'), sale.payment_method?.toUpperCase()],
+            [t('common.status'), s.label],
           ].map(([label, value]) => (
             <div key={label} className="card p-4">
               <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
@@ -90,12 +92,20 @@ export default function SaleDetailPage() {
         {/* Items table */}
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 font-semibold text-gray-900 dark:text-white">
-            Items
+            {t('sales.items')}
           </div>
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>#</th><th>Medicine</th><th>Batch</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Total</th></tr>
+                <tr>
+                  <th>#</th>
+                  <th>{t('sales.col_medicine')}</th>
+                  <th>{t('batches.col_batch')}</th>
+                  <th>{t('sales.col_qty')}</th>
+                  <th>{t('sales.col_unit_price')}</th>
+                  <th>{t('sales.col_discount')}</th>
+                  <th>{t('common.total')}</th>
+                </tr>
               </thead>
               <tbody>
                 {(sale.items || []).map((item, i) => (
@@ -118,26 +128,26 @@ export default function SaleDetailPage() {
 
           {/* Totals */}
           <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-            <div className="max-w-xs ml-auto space-y-1.5 text-sm">
-              <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{formatCurrency(sale.subtotal)}</span></div>
-              {parseFloat(sale.discount_amount) > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span>− {formatCurrency(sale.discount_amount)}</span></div>}
-              {parseFloat(sale.tax_amount) > 0 && <div className="flex justify-between text-gray-500"><span>Tax ({sale.tax_rate}%)</span><span>{formatCurrency(sale.tax_amount)}</span></div>}
-              {parseFloat(sale.loyalty_discount) > 0 && <div className="flex justify-between text-green-500"><span>Loyalty Discount</span><span>− {formatCurrency(sale.loyalty_discount)}</span></div>}
+            <div className="max-w-xs ms-auto space-y-1.5 text-sm">
+              <div className="flex justify-between text-gray-500"><span>{t('sales.subtotal')}</span><span>{formatCurrency(sale.subtotal)}</span></div>
+              {parseFloat(sale.discount_amount) > 0 && <div className="flex justify-between text-red-500"><span>{t('sales.discount')}</span><span>− {formatCurrency(sale.discount_amount)}</span></div>}
+              {parseFloat(sale.tax_amount) > 0 && <div className="flex justify-between text-gray-500"><span>{t('sales.tax')} ({sale.tax_rate}%)</span><span>{formatCurrency(sale.tax_amount)}</span></div>}
+              {parseFloat(sale.loyalty_discount) > 0 && <div className="flex justify-between text-green-500"><span>{t('sales.loyalty_discount')}</span><span>− {formatCurrency(sale.loyalty_discount)}</span></div>}
               <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
-                <span>TOTAL</span><span>{formatCurrency(sale.total)}</span>
+                <span>{t('common.total').toUpperCase()}</span><span>{formatCurrency(sale.total)}</span>
               </div>
-              {parseFloat(sale.cash_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>Cash Paid</span><span>{formatCurrency(sale.cash_amount)}</span></div>}
-              {parseFloat(sale.visa_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>Card Paid</span><span>{formatCurrency(sale.visa_amount)}</span></div>}
-              {parseFloat(sale.wallet_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>Wallet Paid</span><span>{formatCurrency(sale.wallet_amount)}</span></div>}
-              {parseFloat(sale.change_amount) > 0 && <div className="flex justify-between text-green-600 font-medium text-xs"><span>Change Given</span><span>{formatCurrency(sale.change_amount)}</span></div>}
-              {parseFloat(sale.loyalty_points_earned) > 0 && <div className="flex justify-between text-blue-500 text-xs"><span>Loyalty Points Earned</span><span>+{sale.loyalty_points_earned} pts</span></div>}
+              {parseFloat(sale.cash_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>{t('sales.cash_paid')}</span><span>{formatCurrency(sale.cash_amount)}</span></div>}
+              {parseFloat(sale.visa_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>{t('sales.card_paid')}</span><span>{formatCurrency(sale.visa_amount)}</span></div>}
+              {parseFloat(sale.wallet_amount) > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>{t('sales.wallet_paid')}</span><span>{formatCurrency(sale.wallet_amount)}</span></div>}
+              {parseFloat(sale.change_amount) > 0 && <div className="flex justify-between text-green-600 font-medium text-xs"><span>{t('sales.change_given')}</span><span>{formatCurrency(sale.change_amount)}</span></div>}
+              {parseFloat(sale.loyalty_points_earned) > 0 && <div className="flex justify-between text-blue-500 text-xs"><span>{t('sales.loyalty_earned')}</span><span>+{sale.loyalty_points_earned} pts</span></div>}
             </div>
           </div>
         </div>
 
         {sale.notes && (
           <div className="card p-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{t('common.notes')}</p>
             <p className="text-sm text-gray-700 dark:text-gray-300">{sale.notes}</p>
           </div>
         )}

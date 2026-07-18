@@ -10,39 +10,41 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { formatDateTime } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
+import { useTranslation } from 'react-i18next'
 
 function CategoryForm({ initial, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState(initial || { name: '', name_ar: '', description: '', is_active: true })
 
   const handleChange = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.name.trim()) return toast.error('Category name is required')
+    if (!form.name.trim()) return toast.error(t('categories.required_name'))
     onSubmit(form)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="label">Name (English) <span className="text-red-500">*</span></label>
+        <label className="label">{t('categories.name_en')} <span className="text-red-500">*</span></label>
         <input value={form.name} onChange={(e) => handleChange('name', e.target.value)} className="input" placeholder="e.g. Antibiotics" required />
       </div>
       <div>
-        <label className="label">Name (Arabic)</label>
+        <label className="label">{t('categories.name_ar')}</label>
         <input value={form.name_ar} onChange={(e) => handleChange('name_ar', e.target.value)} className="input" dir="rtl" placeholder="مضادات حيوية" />
       </div>
       <div>
-        <label className="label">Description</label>
-        <textarea value={form.description} onChange={(e) => handleChange('description', e.target.value)} rows={3} className="input resize-none" placeholder="Optional description..." />
+        <label className="label">{t('common.description')}</label>
+        <textarea value={form.description} onChange={(e) => handleChange('description', e.target.value)} rows={3} className="input resize-none" placeholder={t('common.optional')} />
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="active" checked={!!form.is_active} onChange={(e) => handleChange('is_active', e.target.checked)} className="rounded" />
-        <label htmlFor="active" className="text-sm text-gray-700 dark:text-gray-300">Active</label>
+        <label htmlFor="active" className="text-sm text-gray-700 dark:text-gray-300">{t('common.active')}</label>
       </div>
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex-1">
-          {loading ? 'Saving...' : (initial ? 'Update Category' : 'Create Category')}
+          {loading ? t('common.saving') : (initial ? t('categories.update') : t('categories.add'))}
         </button>
       </div>
     </form>
@@ -50,6 +52,7 @@ function CategoryForm({ initial, onSubmit, loading }) {
 }
 
 export default function CategoriesPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, put, del, loading } = useApi()
   const pg = usePagination()
@@ -77,13 +80,12 @@ export default function CategoriesPage() {
   const handleSave = async (form) => {
     setSaving(true)
     try {
-      const params = new URLSearchParams(form).toString()
       if (editItem) {
         await put(`/api/categories/${editItem.id}`, form)
-        toast.success('Category updated')
+        toast.success(t('categories.updated'))
       } else {
         await post('/api/categories', form)
-        toast.success('Category created')
+        toast.success(t('categories.added'))
       }
       closeModal()
       load()
@@ -94,7 +96,7 @@ export default function CategoriesPage() {
     setDeleting(true)
     try {
       await del(`/api/categories/${delItem.id}`)
-      toast.success('Category deleted')
+      toast.success(t('categories.deleted'))
       setDelItem(null)
       load()
     } catch {} finally { setDeleting(false) }
@@ -104,19 +106,19 @@ export default function CategoriesPage() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Categories</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{pg.total} total categories</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('categories.title')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('categories.count', { count: pg.total })}</p>
         </div>
         {can('categories.create') && (
           <button onClick={openCreate} className="btn-primary">
-            <PlusIcon className="w-4 h-4" /> Add Category
+            <PlusIcon className="w-4 h-4" /> {t('categories.add')}
           </button>
         )}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <SearchInput value={search} onChange={(v) => { setSearch(v); pg.setPage(1) }} placeholder="Search categories..." className="max-w-xs" />
+          <SearchInput value={search} onChange={(v) => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-xs" />
         </div>
 
         {loading && !rows.length ? <TableSkeleton rows={5} cols={5} /> : (
@@ -125,12 +127,12 @@ export default function CategoriesPage() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Name</th>
-                  <th>Arabic Name</th>
-                  <th>Medicines</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th>{t('categories.col_name')}</th>
+                  <th>{t('medicines.name_ar')}</th>
+                  <th>{t('categories.col_medicines')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('common.created_at')}</th>
+                  <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,7 +144,7 @@ export default function CategoriesPage() {
                     <td><span className="badge badge-blue">{row.medicine_count}</span></td>
                     <td>
                       <span className={row.is_active ? 'badge badge-green' : 'badge badge-gray'}>
-                        {row.is_active ? 'Active' : 'Inactive'}
+                        {row.is_active ? t('common.active') : t('common.inactive')}
                       </span>
                     </td>
                     <td>{formatDateTime(row.created_at)}</td>
@@ -163,7 +165,7 @@ export default function CategoriesPage() {
                   </tr>
                 ))}
                 {!rows.length && !loading && (
-                  <tr><td colSpan={7} className="text-center text-gray-400 py-12">No categories found</td></tr>
+                  <tr><td colSpan={7} className="text-center text-gray-400 py-12">{t('categories.no_categories')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -173,7 +175,7 @@ export default function CategoriesPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'form'} onClose={closeModal} title={editItem ? 'Edit Category' : 'New Category'} size="sm">
+      <Modal open={modal === 'form'} onClose={closeModal} title={editItem ? t('categories.update') : t('categories.add')} size="sm">
         <CategoryForm initial={editItem} onSubmit={handleSave} loading={saving} />
       </Modal>
 
@@ -182,8 +184,8 @@ export default function CategoriesPage() {
         onClose={() => setDelItem(null)}
         onConfirm={handleDelete}
         loading={deleting}
-        title="Delete Category"
-        message={`Are you sure you want to delete "${delItem?.name}"? This cannot be undone.`}
+        title={t('categories.delete_title')}
+        message={t('categories.delete_confirm', { name: delItem?.name })}
       />
     </div>
   )

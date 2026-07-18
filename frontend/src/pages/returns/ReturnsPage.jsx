@@ -8,7 +8,7 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, formatDateTime } from '../../utils/format'
 import toast from 'react-hot-toast'
-import api from '../../services/api'
+import { useTranslation } from 'react-i18next'
 
 const PAYMENT_METHODS = [
   { value: 'cash',          label: 'Cash' },
@@ -19,6 +19,7 @@ const PAYMENT_METHODS = [
 ]
 
 function ReturnForm({ onSubmit, loading, initialSaleId }) {
+  const { t } = useTranslation()
   const { get } = useApi()
   const [returnType, setReturnType] = useState('sale')
   const [invoiceNum, setInvoiceNum] = useState('')
@@ -62,8 +63,8 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     const items = selectedItems.filter(it => it.return_qty > 0)
-    if (!items.length) return toast.error('Select at least one item to return')
-    if (!reason.trim()) return toast.error('Reason is required')
+    if (!items.length) return toast.error(t('returns.required_items'))
+    if (!reason.trim()) return toast.error(t('returns.required_reason'))
 
     const payload = {
       return_type: returnType,
@@ -86,12 +87,15 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Type selector */}
       <div>
-        <label className="label">Return Type</label>
+        <label className="label">{t('returns.return_type')}</label>
         <div className="grid grid-cols-2 gap-2">
-          {['sale', 'purchase'].map(t => (
-            <button type="button" key={t} onClick={() => { setReturnType(t); setSource(null); setSelectedItems([]) }}
-              className={`py-2 rounded-xl text-sm font-medium border-2 transition-colors ${returnType === t ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-600'}`}>
-              {t === 'sale' ? 'Sale Return (Customer)' : 'Purchase Return (Supplier)'}
+          {[
+            { value: 'sale', label: t('returns.type_sale') },
+            { value: 'purchase', label: t('returns.type_purchase') },
+          ].map(opt => (
+            <button type="button" key={opt.value} onClick={() => { setReturnType(opt.value); setSource(null); setSelectedItems([]) }}
+              className={`py-2 rounded-xl text-sm font-medium border-2 transition-colors ${returnType === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-600'}`}>
+              {opt.label}
             </button>
           ))}
         </div>
@@ -99,10 +103,10 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
 
       {/* Invoice search */}
       <div>
-        <label className="label">Invoice Number</label>
+        <label className="label">{t('returns.invoice_number')}</label>
         <div className="flex gap-2">
           <input value={invoiceNum} onChange={e => setInvoiceNum(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchInvoice())} className="input flex-1 font-mono" placeholder="e.g. INV-20240101-0001" />
-          <button type="button" onClick={searchInvoice} disabled={searching} className="btn-secondary btn-sm">{searching ? '...' : 'Search'}</button>
+          <button type="button" onClick={searchInvoice} disabled={searching} className="btn-secondary btn-sm">{searching ? '...' : t('common.search')}</button>
         </div>
       </div>
 
@@ -114,7 +118,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
             <span className="text-blue-600 dark:text-blue-400 font-bold">{formatCurrency(source.total)}</span>
           </div>
           <p className="text-blue-600 dark:text-blue-400 text-xs mt-0.5">
-            {returnType === 'sale' ? (source.customer_name || 'Walk-in') : (source.supplier_name || '—')}
+            {returnType === 'sale' ? (source.customer_name || t('sales.walk_in')) : (source.supplier_name || '—')}
           </p>
         </div>
       )}
@@ -122,7 +126,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       {/* Items */}
       {selectedItems.length > 0 && (
         <div>
-          <label className="label">Items to Return</label>
+          <label className="label">{t('returns.items_to_return')}</label>
           <div className="space-y-2 max-h-56 overflow-y-auto">
             {selectedItems.map((item, idx) => (
               <div key={idx} className="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
@@ -145,7 +149,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       {/* Payment Method */}
       {source && (
         <div className="space-y-3">
-          <label className="label">Refund Payment Method</label>
+          <label className="label">{t('returns.refund_method')}</label>
           <div className="grid grid-cols-3 gap-2">
             {PAYMENT_METHODS.map(pm => (
               <button type="button" key={pm.value}
@@ -173,7 +177,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       )}
 
       <div>
-        <label className="label">Reason *</label>
+        <label className="label">{t('returns.reason')} *</label>
         <select value={reason} onChange={e => setReason(e.target.value)} className="input" required>
           <option value="">Select reason...</option>
           <option>Expired product</option>
@@ -185,27 +189,28 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
           <option>Other</option>
         </select>
       </div>
-      <div><label className="label">Notes</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input resize-none" /></div>
+      <div><label className="label">{t('common.notes')}</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input resize-none" /></div>
 
       <button type="submit" disabled={loading || !source} className="btn-primary w-full">
-        {loading ? 'Processing...' : 'Process Return'}
+        {loading ? t('common.processing') : t('returns.process_btn')}
       </button>
     </form>
   )
 }
 
-function ReturnDetailModal({ returnItem, onClose }) {
+function ReturnDetailModal({ returnItem }) {
+  const { t } = useTranslation()
   if (!returnItem) return null
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 text-sm">
         {[
-          ['Type', returnItem.return_type === 'sale' ? 'Sale Return' : 'Purchase Return'],
+          [t('returns.return_type'), returnItem.return_type === 'sale' ? t('returns.type_sale') : t('returns.type_purchase')],
           ['Reference', returnItem.reference_invoice],
-          ['Total Refund', formatCurrency(returnItem.total_amount)],
-          ['Payment Method', PAYMENT_METHODS.find(p => p.value === returnItem.payment_method)?.label || '—'],
+          [t('returns.total_refund'), formatCurrency(returnItem.total_amount)],
+          [t('returns.refund_method'), PAYMENT_METHODS.find(p => p.value === returnItem.payment_method)?.label || '—'],
           ['Processed By', returnItem.created_by_name],
-          ['Date', returnItem.created_at ? new Date(returnItem.created_at).toLocaleString() : '—'],
+          [t('common.date'), returnItem.created_at ? new Date(returnItem.created_at).toLocaleString() : '—'],
         ].map(([l, v]) => (
           <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-semibold">{v || '—'}</p></div>
         ))}
@@ -217,12 +222,12 @@ function ReturnDetailModal({ returnItem, onClose }) {
       </div>
       {returnItem.reason && (
         <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-300">
-          <span className="font-medium">Reason: </span>{returnItem.reason}
+          <span className="font-medium">{t('returns.reason')}: </span>{returnItem.reason}
         </div>
       )}
       <div className="table-container">
         <table className="table">
-          <thead><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead>
+          <thead><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>{t('common.total')}</th></tr></thead>
           <tbody>
             {(returnItem.items || []).map((it, i) => (
               <tr key={i}>
@@ -240,6 +245,7 @@ function ReturnDetailModal({ returnItem, onClose }) {
 }
 
 export default function ReturnsPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, loading } = useApi()
   const pg = usePagination()
@@ -258,7 +264,6 @@ export default function ReturnsPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Auto-open form if coming from sale detail with sale_id
   useEffect(() => {
     if (searchParams.get('sale_id') && can('returns.create')) {
       setModal('form')
@@ -274,26 +279,35 @@ export default function ReturnsPage() {
     setSaving(true)
     try {
       await post('/api/returns', form)
-      toast.success('Return processed successfully')
+      toast.success(t('returns.processed'))
       setModal(null); load()
     } catch {} finally { setSaving(false) }
   }
 
+  const TYPE_FILTERS = [
+    { value: '', label: t('batches.filter_all') },
+    { value: 'sale', label: t('returns.type_sale') },
+    { value: 'purchase', label: t('returns.type_purchase') },
+  ]
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Returns</h1><p className="text-sm text-gray-500">{pg.total} returns</p></div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('returns.title')}</h1>
+          <p className="text-sm text-gray-500">{t('returns.count', { count: pg.total })}</p>
+        </div>
         {can('returns.create') && (
-          <button onClick={() => setModal('form')} className="btn-primary"><PlusIcon className="w-4 h-4" /> New Return</button>
+          <button onClick={() => setModal('form')} className="btn-primary"><PlusIcon className="w-4 h-4" /> {t('returns.add')}</button>
         )}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex gap-2 flex-wrap">
-          {[['', 'All'], ['sale', 'Sale Returns'], ['purchase', 'Purchase Returns']].map(([v, l]) => (
-            <button key={v} onClick={() => { setTypeFilter(v); pg.setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === v ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
-              {l}
+          {TYPE_FILTERS.map(f => (
+            <button key={f.value} onClick={() => { setTypeFilter(f.value); pg.setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === f.value ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+              {f.label}
             </button>
           ))}
         </div>
@@ -301,14 +315,25 @@ export default function ReturnsPage() {
         {loading && !rows.length ? <TableSkeleton rows={6} cols={7} /> : (
           <div className="table-container">
             <table className="table">
-              <thead><tr><th>Return #</th><th>Type</th><th>Reference</th><th>Items</th><th>Total</th><th>Reason</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>{t('returns.col_number')}</th>
+                  <th>{t('returns.col_type')}</th>
+                  <th>{t('returns.col_reference')}</th>
+                  <th>{t('returns.col_items')}</th>
+                  <th>{t('returns.col_total')}</th>
+                  <th>{t('returns.col_reason')}</th>
+                  <th>{t('common.date')}</th>
+                  <th>{t('common.actions')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {rows.map(row => (
                   <tr key={row.id}>
                     <td className="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400">RET-{String(row.id).padStart(5, '0')}</td>
                     <td>
                       <span className={`badge ${row.return_type === 'sale' ? 'badge-blue' : 'badge-purple'}`}>
-                        {row.return_type === 'sale' ? 'Sale' : 'Purchase'}
+                        {row.return_type === 'sale' ? t('returns.type_sale') : t('returns.type_purchase')}
                       </span>
                     </td>
                     <td className="font-mono text-xs">{row.reference_invoice || '—'}</td>
@@ -323,7 +348,7 @@ export default function ReturnsPage() {
                     </td>
                   </tr>
                 ))}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">No returns found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('returns.no_returns')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -331,12 +356,12 @@ export default function ReturnsPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title="Process Return" size="lg">
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={t('returns.add')} size="lg">
         <ReturnForm onSubmit={handleSubmit} loading={saving} initialSaleId={searchParams.get('sale_id') || null} />
       </Modal>
 
-      <Modal open={modal === 'view'} onClose={() => { setModal(null); setViewItem(null) }} title="Return Details" size="lg">
-        <ReturnDetailModal returnItem={viewItem} onClose={() => setModal(null)} />
+      <Modal open={modal === 'view'} onClose={() => { setModal(null); setViewItem(null) }} title={t('returns.detail_title')} size="lg">
+        <ReturnDetailModal returnItem={viewItem} />
       </Modal>
     </div>
   )

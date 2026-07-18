@@ -8,8 +8,10 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency, stockStatus } from '../../utils/format'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
-function AdjustForm({ medicines, batches, onSubmit, loading }) {
+function AdjustForm({ medicines, onSubmit, loading }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState({ medicine_id: '', batch_id: '', type: 'add', quantity: '', reason: '', notes: '' })
   const [medBatches, setMedBatches] = useState([])
   const { get } = useApi()
@@ -27,16 +29,16 @@ function AdjustForm({ medicines, batches, onSubmit, loading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.medicine_id) return toast.error('Medicine is required')
-    if (!form.quantity || form.quantity <= 0) return toast.error('Quantity must be > 0')
-    if (!form.reason.trim()) return toast.error('Reason is required')
+    if (!form.medicine_id) return toast.error(t('inventory.required_medicine'))
+    if (!form.quantity || form.quantity <= 0) return toast.error(t('inventory.required_quantity'))
+    if (!form.reason.trim()) return toast.error(t('inventory.required_reason'))
     onSubmit(form)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="label">Medicine *</label>
+        <label className="label">{t('inventory.col_medicine')} *</label>
         <select value={form.medicine_id} onChange={e => handleMedChange(e.target.value)} className="input" required>
           <option value="">— Select Medicine —</option>
           {medicines.map(m => <option key={m.id} value={m.id}>{m.name} (Stock: {m.current_stock})</option>)}
@@ -52,17 +54,21 @@ function AdjustForm({ medicines, batches, onSubmit, loading }) {
         </div>
       )}
       <div>
-        <label className="label">Adjustment Type *</label>
+        <label className="label">{t('inventory.adj_type')} *</label>
         <div className="grid grid-cols-3 gap-2">
-          {['add', 'remove', 'correction'].map(t => (
-            <button type="button" key={t} onClick={() => set('type', t)}
-              className={`py-2 rounded-lg text-sm font-medium border-2 transition-colors ${form.type === t ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'}`}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+          {[
+            { value: 'add', label: t('inventory.type_add') },
+            { value: 'remove', label: t('inventory.type_remove') },
+            { value: 'correction', label: t('inventory.type_correction') },
+          ].map(opt => (
+            <button type="button" key={opt.value} onClick={() => set('type', opt.value)}
+              className={`py-2 rounded-lg text-sm font-medium border-2 transition-colors ${form.type === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'}`}>
+              {opt.label}
             </button>
           ))}
         </div>
       </div>
-      <div><label className="label">Quantity *</label><input type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required /></div>
+      <div><label className="label">{t('inventory.col_quantity')} *</label><input type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required /></div>
       <div>
         <label className="label">Reason *</label>
         <select value={form.reason} onChange={e => set('reason', e.target.value)} className="input" required>
@@ -75,13 +81,14 @@ function AdjustForm({ medicines, batches, onSubmit, loading }) {
           <option>Other</option>
         </select>
       </div>
-      <div><label className="label">Notes</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
-      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? 'Processing...' : 'Apply Adjustment'}</button>
+      <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
+      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? t('common.processing') : t('inventory.apply_adj')}</button>
     </form>
   )
 }
 
 export default function InventoryPage() {
+  const { t } = useTranslation()
   const { can } = useAuth()
   const { get, post, loading } = useApi()
   const pg = usePagination()
@@ -91,13 +98,12 @@ export default function InventoryPage() {
   const [medicines, setMedicines] = useState([])
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState('stock')
 
   const load = useCallback(() => {
     get('/api/inventory', { page: pg.page, per_page: pg.perPage, search, filter }).then(res => {
       setRows(res.data || []); pg.updateMeta(res.meta)
     })
-  }, [pg.page, pg.perPage, search, filter, tab])
+  }, [pg.page, pg.perPage, search, filter])
 
   useEffect(() => { load() }, [load])
 
@@ -109,30 +115,40 @@ export default function InventoryPage() {
     setSaving(true)
     try {
       await post('/api/inventory/adjust', form)
-      toast.success('Stock adjusted successfully')
+      toast.success(t('inventory.adjusted'))
       setModal(null); load()
     } catch {} finally { setSaving(false) }
   }
 
+  const FILTERS = [
+    { value: '', label: t('batches.filter_all') },
+    { value: 'low_stock', label: t('inventory.filter_low') },
+    { value: 'out_of_stock', label: t('inventory.filter_out') },
+    { value: 'in_stock', label: t('inventory.filter_in') },
+  ]
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory</h1><p className="text-sm text-gray-500">{pg.total} medicines</p></div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('inventory.title')}</h1>
+          <p className="text-sm text-gray-500">{t('inventory.count', { count: pg.total })}</p>
+        </div>
         {can('inventory.adjust') && (
           <button onClick={() => setModal('adjust')} className="btn-primary">
-            <AdjustmentsHorizontalIcon className="w-4 h-4" /> Adjust Stock
+            <AdjustmentsHorizontalIcon className="w-4 h-4" /> {t('inventory.adjust')}
           </button>
         )}
       </div>
 
       <div className="card">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 items-center">
-          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder="Search medicines..." className="max-w-sm" />
-          <div className="flex gap-1 ml-auto">
-            {[['', 'All'], ['low_stock', 'Low Stock'], ['out_of_stock', 'Out of Stock'], ['in_stock', 'In Stock']].map(([v, l]) => (
-              <button key={v} onClick={() => { setFilter(v); pg.setPage(1) }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === v ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
-                {l}
+          <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-sm" />
+          <div className="flex gap-1 ms-auto">
+            {FILTERS.map(f => (
+              <button key={f.value} onClick={() => { setFilter(f.value); pg.setPage(1) }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f.value ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+                {f.label}
               </button>
             ))}
           </div>
@@ -142,7 +158,18 @@ export default function InventoryPage() {
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>Medicine</th><th>SKU</th><th>Category</th><th>Pharmacist Price</th><th>Public Price</th><th>Stock</th><th>Min Stock</th><th>Value Pharmacist</th><th>Value Public</th><th>Status</th></tr>
+                <tr>
+                  <th>{t('inventory.col_medicine')}</th>
+                  <th>SKU</th>
+                  <th>{t('inventory.col_category')}</th>
+                  <th>{t('inventory.col_pharmacist_price')}</th>
+                  <th>{t('inventory.col_public_price')}</th>
+                  <th>{t('inventory.col_stock')}</th>
+                  <th>{t('inventory.col_min_stock')}</th>
+                  <th>{t('inventory.col_value_pharmacist')}</th>
+                  <th>{t('inventory.col_value_public')}</th>
+                  <th>{t('common.status')}</th>
+                </tr>
               </thead>
               <tbody>
                 {rows.map(row => {
@@ -173,7 +200,7 @@ export default function InventoryPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={9} className="text-center text-gray-400 py-12">No inventory data found</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={10} className="text-center text-gray-400 py-12">{t('inventory.no_inventory')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -181,7 +208,7 @@ export default function InventoryPage() {
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
 
-      <Modal open={modal === 'adjust'} onClose={() => setModal(null)} title="Adjust Stock" size="md">
+      <Modal open={modal === 'adjust'} onClose={() => setModal(null)} title={t('inventory.adjust')} size="md">
         <AdjustForm medicines={medicines} onSubmit={handleAdjust} loading={saving} />
       </Modal>
     </div>
