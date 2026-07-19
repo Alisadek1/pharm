@@ -38,13 +38,20 @@ class InventoryController
             $havingClause = 'HAVING current_stock = 0';
         } elseif ($filter === 'in_stock') {
             $havingClause = 'HAVING current_stock > m.minimum_stock';
+        } elseif ($filter === 'expired') {
+            $havingClause = 'HAVING expired_batches > 0';
+        } elseif ($filter === 'near_expiry') {
+            $havingClause = 'HAVING near_expiry_batches > 0';
         }
 
         $total = $db->prepare("
             SELECT COUNT(*) FROM (
-                SELECT m.id,
+                SELECT m.id, m.minimum_stock,
                        COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b
-                                 WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock
+                                 WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,
+                       (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.expiry_date < CURDATE() AND b.quantity > 0) as expired_batches,
+                       (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id
+                        AND b.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND b.quantity > 0) as near_expiry_batches
                 FROM medicines m
                 WHERE {$whereStr}
                 {$havingClause}
@@ -62,7 +69,8 @@ class InventoryController
                              WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,
                    (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.expiry_date < CURDATE() AND b.quantity > 0) as expired_batches,
                    (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id
-                    AND b.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND b.quantity > 0) as near_expiry_batches
+                    AND b.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND b.quantity > 0) as near_expiry_batches,
+                   (SELECT MIN(b.expiry_date) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0) as nearest_expiry
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             LEFT JOIN companies co ON co.id = m.company_id

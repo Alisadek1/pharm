@@ -37,7 +37,6 @@ export default function MainLayout({ children }) {
     { labelKey: 'nav.sections.supply', divider: true },
     { to: '/suppliers',   labelKey: 'nav.suppliers',   icon: TruckIcon,                 perm: 'suppliers.view' },
     { to: '/purchases',   labelKey: 'nav.purchases',   icon: ShoppingCartIcon,          perm: 'purchases.view' },
-    { to: '/batches',     labelKey: 'nav.batches',     icon: ArchiveBoxIcon,            perm: 'batches.view' },
     { to: '/inventory',   labelKey: 'nav.inventory',   icon: CubeIcon,                  perm: 'inventory.view' },
     { labelKey: 'nav.sections.sales', divider: true },
     { to: '/customers',   labelKey: 'nav.customers',   icon: UsersIcon,                 perm: 'customers.view' },

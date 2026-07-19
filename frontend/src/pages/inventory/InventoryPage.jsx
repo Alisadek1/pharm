@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
@@ -6,7 +7,7 @@ import Pagination from '../../components/ui/Pagination'
 import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, stockStatus } from '../../utils/format'
+import { formatCurrency, stockStatus, expiryStatus } from '../../utils/format'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
@@ -92,8 +93,9 @@ export default function InventoryPage() {
   const { can } = useAuth()
   const { get, post, loading } = useApi()
   const pg = usePagination()
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useState(searchParams.get('filter') || '')
   const [rows, setRows] = useState([])
   const [medicines, setMedicines] = useState([])
   const [modal, setModal] = useState(null)
@@ -125,6 +127,8 @@ export default function InventoryPage() {
     { value: 'low_stock', label: t('inventory.filter_low') },
     { value: 'out_of_stock', label: t('inventory.filter_out') },
     { value: 'in_stock', label: t('inventory.filter_in') },
+    { value: 'near_expiry', label: t('batches.filter_expiring') },
+    { value: 'expired', label: t('batches.filter_expired') },
   ]
 
   return (
@@ -166,6 +170,7 @@ export default function InventoryPage() {
                   <th>{t('inventory.col_public_price')}</th>
                   <th>{t('inventory.col_stock')}</th>
                   <th>{t('inventory.col_min_stock')}</th>
+                  <th>{t('batches.col_expiry')}</th>
                   <th>{t('inventory.col_value_pharmacist')}</th>
                   <th>{t('inventory.col_value_public')}</th>
                   <th>{t('common.status')}</th>
@@ -176,6 +181,7 @@ export default function InventoryPage() {
                   const s = stockStatus(row.current_stock, row.minimum_stock)
                   const value = parseFloat(row.current_stock) * parseFloat(row.purchase_price)
                   const valuePublic = parseFloat(row.current_stock) * parseFloat(row.public_price || row.selling_price)
+                  const exp = row.nearest_expiry ? expiryStatus(row.nearest_expiry) : null
                   return (
                     <tr key={row.id}>
                       <td>
@@ -188,6 +194,7 @@ export default function InventoryPage() {
                       <td className="font-semibold">{formatCurrency(row.public_price || row.selling_price)}</td>
                       <td className="font-bold text-lg">{row.current_stock}</td>
                       <td className="text-gray-500">{row.minimum_stock}</td>
+                      <td>{exp ? <span className={`badge badge-${exp.color}`}>{exp.label}</span> : '—'}</td>
                       <td>{formatCurrency(value)}</td>
                       <td className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(valuePublic)}</td>
                       <td>
@@ -200,7 +207,7 @@ export default function InventoryPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={10} className="text-center text-gray-400 py-12">{t('inventory.no_inventory')}</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={11} className="text-center text-gray-400 py-12">{t('inventory.no_inventory')}</td></tr>}
               </tbody>
             </table>
           </div>

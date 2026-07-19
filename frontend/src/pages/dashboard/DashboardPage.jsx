@@ -62,13 +62,13 @@ export default function DashboardPage() {
             </Link>
           )}
           {st.expired_count > 0 && (
-            <Link to="/batches?filter=expired" className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors">
+            <Link to="/inventory?filter=expired" className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors">
               <ArchiveBoxIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
               <span className="text-sm font-medium text-red-800 dark:text-red-300">{t('dashboard.expired_alert', { count: st.expired_count })}</span>
             </Link>
           )}
           {st.near_expiry_count > 0 && (
-            <Link to="/batches?filter=near_expiry" className="flex items-center gap-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors">
+            <Link to="/inventory?filter=near_expiry" className="flex items-center gap-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors">
               <ClockIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
               <span className="text-sm font-medium text-orange-800 dark:text-orange-300">{t('dashboard.near_expiry_alert', { count: st.near_expiry_count })}</span>
             </Link>

@@ -12,7 +12,6 @@ import CompaniesPage     from './pages/companies/CompaniesPage'
 import SuppliersPage     from './pages/suppliers/SuppliersPage'
 import CustomersPage     from './pages/customers/CustomersPage'
 import MedicinesPage     from './pages/medicines/MedicinesPage'
-import BatchesPage       from './pages/batches/BatchesPage'
 import PurchasesPage     from './pages/purchases/PurchasesPage'
 import InventoryPage     from './pages/inventory/InventoryPage'
 import POSPage           from './pages/pos/POSPage'
@@ -58,7 +57,7 @@ function AppRoutes() {
               <Route path="/suppliers"     element={<SuppliersPage />} />
               <Route path="/customers"     element={<CustomersPage />} />
               <Route path="/medicines"     element={<MedicinesPage />} />
-              <Route path="/batches"       element={<BatchesPage />} />
+              <Route path="/batches"       element={<Navigate to="/inventory" replace />} />
               <Route path="/purchases"     element={<PurchasesPage />} />
               <Route path="/inventory"     element={<InventoryPage />} />
               <Route path="/pos"           element={<POSPage />} />
