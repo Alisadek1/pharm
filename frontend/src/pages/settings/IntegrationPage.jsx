@@ -73,7 +73,7 @@ export default function IntegrationPage() {
   }
 
   const handleSync = async () => {
-    if (!can('settings.edit')) return toast.error('Permission denied')
+    if (!can('settings.edit')) return toast.error(t('common.permission_denied'))
     setSyncing(true)
     try {
       const res = await api.post('/api/drug-sync/sync')
@@ -180,10 +180,10 @@ export default function IntegrationPage() {
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
             <p className="font-semibold">{t('integration.how_it_works')}</p>
             <ul className="list-disc list-inside space-y-0.5 text-xs">
-              <li>Matches medicines by Barcode → GTIN → Saudi Drug Code → Name</li>
-              <li>Updates: Public Price, Availability, Drug Information</li>
-              <li>Only updates medicines already in your database</li>
-              <li>All sync operations are logged in Sync History</li>
+              <li>{t('integration.how_1')}</li>
+              <li>{t('integration.how_2')}</li>
+              <li>{t('integration.how_3')}</li>
+              <li>{t('integration.how_4')}</li>
             </ul>
           </div>
         </div>

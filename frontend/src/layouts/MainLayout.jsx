@@ -214,7 +214,7 @@ export default function MainLayout({ children }) {
           <Link to="/notifications" className="relative p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors">
             <BellIcon className="w-5 h-5" />
             {notifCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute top-0.5 end-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                 {notifCount > 9 ? '9+' : notifCount}
               </span>
             )}

@@ -33,7 +33,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     const validItems = items.filter(it => it.medicine_id && it.quantity > 0 && it.purchase_price)
-    if (!validItems.length) return toast.error('Add at least one item')
+    if (!validItems.length) return toast.error(t('purchases.required_items'))
     if (form.status !== 'ordered' && validItems.some(it => !it.expiry_date)) {
       return toast.error(t('purchases.required_expiry'))
     }
@@ -46,7 +46,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
         <div>
           <label className="label">{t('purchases.supplier')}</label>
           <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className="input">
-            <option value="">— Select Supplier —</option>
+            <option value="">{t('common.select')}</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
@@ -69,7 +69,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
                   setItem(idx, 'medicine_id', e.target.value)
                   if (med) { setItem(idx, 'purchase_price', med.purchase_price); setItem(idx, 'public_price', med.public_price || '') }
                 }} className="input text-xs">
-                  <option value="">Select...</option>
+                  <option value="">{t('common.select')}</option>
                   {medicines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
@@ -109,7 +109,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
           <label className="label">{t('purchases.discount')}</label>
           <div className="flex gap-1">
             <select value={form.discount_type} onChange={e => set('discount_type', e.target.value)} className="input w-24">
-              <option value="fixed">Fixed</option>
+              <option value="fixed">{t('pos.fixed')}</option>
               <option value="percentage">%</option>
             </select>
             <input type="number" min="0" step="0.01" value={form.discount_value} onChange={e => set('discount_value', e.target.value)} className="input" />
@@ -119,8 +119,8 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
         <div>
           <label className="label">{t('common.status')}</label>
           <select value={form.status} onChange={e => set('status', e.target.value)} className="input">
-            <option value="received">Received</option>
-            <option value="ordered">Ordered</option>
+            <option value="received">{t('status.received')}</option>
+            <option value="ordered">{t('status.ordered')}</option>
           </select>
         </div>
       </div>
@@ -221,7 +221,7 @@ export default function PurchasesPage() {
                   <th>{t('purchases.col_total')}</th>
                   <th>{t('purchases.col_paid')}</th>
                   <th>{t('purchases.col_status')}</th>
-                  <th>Payment</th>
+                  <th>{t('purchases.col_payment')}</th>
                   <th>{t('common.actions')}</th>
                 </tr>
               </thead>
@@ -259,17 +259,17 @@ export default function PurchasesPage() {
         <PurchaseForm suppliers={suppliers} medicines={medicines} onSubmit={handleSave} loading={saving} />
       </Modal>
 
-      <Modal open={modal === 'view'} onClose={() => { setModal(null); setViewItem(null) }} title={`Purchase: ${viewItem?.invoice_number}`} size="xl">
+      <Modal open={modal === 'view'} onClose={() => { setModal(null); setViewItem(null) }} title={viewItem?.invoice_number} size="xl">
         {viewItem && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              {[['Supplier', viewItem.supplier_name], ['Date', formatDate(viewItem.purchase_date)], ['Total', formatCurrency(viewItem.total)], ['Due', formatCurrency(viewItem.due_amount)]].map(([l, v]) => (
+              {[[t('purchases.supplier'), viewItem.supplier_name], [t('common.date'), formatDate(viewItem.purchase_date)], [t('common.total'), formatCurrency(viewItem.total)], [t('purchases.due'), formatCurrency(viewItem.due_amount)]].map(([l, v]) => (
                 <div key={l}><p className="text-gray-400 text-xs">{l}</p><p className="font-semibold">{v || '—'}</p></div>
               ))}
             </div>
             <div className="table-container">
               <table className="table">
-                <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>{t('purchases.pharmacist_price')}</th><th>{t('common.total')}</th></tr></thead>
+                <thead><tr><th>{t('purchases.medicine')}</th><th>{t('purchases.batch')}</th><th>{t('purchases.expiry')}</th><th>{t('purchases.qty')}</th><th>{t('purchases.pharmacist_price')}</th><th>{t('common.total')}</th></tr></thead>
                 <tbody>
                   {(viewItem.items || []).map((it, i) => (
                     <tr key={i}>

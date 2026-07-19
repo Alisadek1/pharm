@@ -227,13 +227,14 @@ export default function POSPage() {
   const printReceipt = () => {
     const el = document.getElementById('receipt-print-area')
     if (!el) return
+    const dir = document.documentElement.getAttribute('dir') || 'ltr'
     const win = window.open('', '_blank', 'width=420,height=700')
-    win.document.write(`<!DOCTYPE html><html><head>
+    win.document.write(`<!DOCTYPE html><html lang="${document.documentElement.lang || 'en'}" dir="${dir}"><head>
       <meta charset="UTF-8">
-      <title>Receipt</title>
+      <title>${t('pos.receipt_title')}</title>
       <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 16px; color: #000; max-width: 380px; }
+        body { font-family: 'Courier New', 'Cairo', monospace, sans-serif; font-size: 12px; margin: 0; padding: 16px; color: #000; max-width: 380px; }
         .header { text-align: center; margin-bottom: 8px; }
         .header img { max-height: 64px; object-fit: contain; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
         .header h2 { margin: 0 0 2px; font-size: 16px; font-weight: bold; }
@@ -241,12 +242,12 @@ export default function POSPage() {
         .hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
         .row { display: flex; justify-content: space-between; margin: 2px 0; }
         .item-name { font-weight: bold; margin-top: 4px; }
-        .item-detail { display: flex; justify-content: space-between; padding-left: 12px; color: #333; }
+        .item-detail { display: flex; justify-content: space-between; padding-inline-start: 12px; color: #333; }
         .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin: 3px 0; }
         .footer { text-align: center; margin-top: 8px; font-size: 11px; color: #333; }
-        [dir=rtl] { text-align: right; }
+        [dir=rtl] body, body[dir=rtl] { text-align: right; }
       </style>
-    </head><body>${el.innerHTML}</body></html>`)
+    </head><body dir="${dir}">${el.innerHTML}</body></html>`)
     win.document.close()
     setTimeout(() => { win.focus(); win.print(); win.close() }, 300)
   }
@@ -286,13 +287,13 @@ export default function POSPage() {
                   <button
                     key={med.id}
                     onClick={() => addToCart(med)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-start transition-colors"
                   >
                     <div>
                       <p className="font-medium text-sm text-gray-900 dark:text-white">{med.name}</p>
-                      <p className="text-xs text-gray-400">{med.barcode || med.sku} · Stock: {med.current_stock}</p>
+                      <p className="text-xs text-gray-400">{med.barcode || med.sku} · {t('pos.stock')}: {med.current_stock}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="font-bold text-primary-600 dark:text-primary-400">{formatCurrency(med.public_price || med.selling_price)}</p>
                       {med.prescription_required && <span className="text-[10px] text-blue-500">Rx</span>}
                     </div>
@@ -322,7 +323,7 @@ export default function POSPage() {
                     {item.prescription && <span className="badge badge-blue text-[9px] px-1 py-0">Rx</span>}
                     {item.controlled && <span className="badge badge-red text-[9px] px-1 py-0">CD</span>}
                   </div>
-                  <p className="text-xs text-gray-400">{formatCurrency(item.unit_price)} each</p>
+                  <p className="text-xs text-gray-400">{formatCurrency(item.unit_price)} / {t('pos.each')}</p>
                 </div>
 
                 {/* Quantity */}
@@ -342,7 +343,7 @@ export default function POSPage() {
                 </div>
 
                 {/* Item subtotal */}
-                <div className="text-right min-w-[70px]">
+                <div className="text-end min-w-[70px]">
                   <p className="font-bold text-sm">{formatCurrency(item.unit_price * item.quantity - item.discount_amount)}</p>
                 </div>
 
@@ -369,7 +370,7 @@ export default function POSPage() {
       </div>
 
       {/* Right: Checkout panel */}
-      <div className="w-96 flex flex-col bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-700 overflow-y-auto">
+      <div className="w-96 flex flex-col bg-white dark:bg-gray-800 border-s border-gray-100 dark:border-gray-700 overflow-y-auto">
         {/* Customer */}
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
           <label className="label">{t('pos.customer')}</label>
@@ -395,9 +396,9 @@ export default function POSPage() {
                 <div className="absolute top-full start-0 end-0 z-20 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border max-h-48 overflow-y-auto">
                   {customerResults.map(c => (
                     <button key={c.id} onClick={() => { setCustomer(c); setCustSearch(''); setCustResults([]) }}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+                      className="w-full text-start px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
                       <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-gray-400">{c.phone} · {c.loyalty_points} pts</p>
+                      <p className="text-xs text-gray-400">{c.phone} · {c.loyalty_points} {t('pos.points')}</p>
                     </button>
                   ))}
                 </div>
@@ -416,7 +417,7 @@ export default function POSPage() {
               onChange={e => setLoyalty(Math.min(parseInt(e.target.value) || 0, customer.loyalty_points))}
               className="input"
             />
-            {loyaltyToUse > 0 && <p className="text-xs text-green-500 mt-1">Discount: {formatCurrency(loyaltyToUse * 0.01)}</p>}
+            {loyaltyToUse > 0 && <p className="text-xs text-green-500 mt-1">{t('common.discount')}: {formatCurrency(loyaltyToUse * 0.01)}</p>}
           </div>
         )}
 

@@ -28,7 +28,7 @@ function CategoryForm({ initial, onSubmit, loading }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="label">{t('categories.name_en')} <span className="text-red-500">*</span></label>
-        <input value={form.name} onChange={(e) => handleChange('name', e.target.value)} className="input" placeholder="e.g. Antibiotics" required />
+        <input value={form.name} onChange={(e) => handleChange('name', e.target.value)} className="input" placeholder={t('categories.name_placeholder')} required />
       </div>
       <div>
         <label className="label">{t('categories.name_ar')}</label>

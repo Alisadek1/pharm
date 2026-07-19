@@ -142,7 +142,7 @@ export default function SettingsPage() {
               </Field>
 
               <Field label={t('settings.pharmacy_name')} help={t('settings.pharmacy_name_help')}>
-                <input value={s.pharmacy_name || ''} onChange={e => set('pharmacy_name', e.target.value)} className="input" placeholder="My Pharmacy" />
+                <input value={s.pharmacy_name || ''} onChange={e => set('pharmacy_name', e.target.value)} className="input" placeholder={t('settings.pharmacy_name_placeholder')} />
               </Field>
               <Field label={t('settings.pharmacy_name_ar')}>
                 <input value={s.pharmacy_name_ar || ''} onChange={e => set('pharmacy_name_ar', e.target.value)} className="input" dir="rtl" placeholder="صيدليتي" />
@@ -244,13 +244,13 @@ export default function SettingsPage() {
                       onChange={e => set('pricing_percentage', e.target.value)} className="input w-36" />
                     <span className="text-sm text-gray-500">%</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Selling Price = Pharmacist Price × (1 + {parseFloat(s.pricing_percentage || 30).toFixed(1)}%)</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('settings.formula_hint', { pct: parseFloat(s.pricing_percentage || 30).toFixed(1) })}</p>
                 </Field>
               )}
 
               <Field label={t('settings.round_price')} help={t('settings.round_price_help')}>
                 <select value={s.pricing_round_to || '0'} onChange={e => set('pricing_round_to', e.target.value)} className="input w-40">
-                  <option value="0">No rounding</option>
+                  <option value="0">{t('settings.no_rounding')}</option>
                   <option value="0.25">0.25 SAR</option>
                   <option value="0.50">0.50 SAR</option>
                   <option value="1">1.00 SAR</option>
@@ -270,7 +270,7 @@ export default function SettingsPage() {
                   if (roundTo > 0) selling = Math.ceil(selling / roundTo) * roundTo
                   return (
                     <div key={cost} className="flex justify-between text-sm py-1 border-b border-blue-100 dark:border-blue-800 last:border-0">
-                      <span className="text-blue-600 dark:text-blue-400">Cost: {cost.toFixed(3)} SAR</span>
+                      <span className="text-blue-600 dark:text-blue-400">{t('settings.cost_label')}: {cost.toFixed(3)}</span>
                       <span className="font-bold text-blue-800 dark:text-blue-200">→ {selling.toFixed(3)} SAR</span>
                     </div>
                   )
@@ -290,7 +290,7 @@ export default function SettingsPage() {
                 <input value={s.purchase_prefix || 'PO'} onChange={e => set('purchase_prefix', e.target.value)} className="input w-28 font-mono" maxLength={10} />
               </Field>
               <Field label={t('settings.invoice_footer')} help={t('settings.invoice_footer_help')}>
-                <textarea value={s.invoice_footer || ''} onChange={e => set('invoice_footer', e.target.value)} rows={2} className="input resize-none" placeholder="Thank you for your purchase!" />
+                <textarea value={s.invoice_footer || ''} onChange={e => set('invoice_footer', e.target.value)} rows={2} className="input resize-none" placeholder={t('settings.footer_placeholder')} />
               </Field>
               <Field label={t('settings.invoice_footer_ar')}>
                 <textarea value={s.invoice_footer_ar || ''} onChange={e => set('invoice_footer_ar', e.target.value)} rows={2} className="input resize-none" dir="rtl" placeholder="شكراً لتسوقكم معنا" />
@@ -316,9 +316,9 @@ export default function SettingsPage() {
               <h2 className="text-base font-bold mb-4 text-gray-900 dark:text-white">{t('settings.printer_settings')}</h2>
               <Field label={t('settings.default_printer')} help={t('settings.default_printer_help')}>
                 <select value={s.default_printer || 'thermal'} onChange={e => set('default_printer', e.target.value)} className="input">
-                  <option value="thermal">Thermal (80mm)</option>
-                  <option value="a4">A4 Paper</option>
-                  <option value="a5">A5 Paper</option>
+                  <option value="thermal">{t('settings.printer_thermal')}</option>
+                  <option value="a4">{t('settings.printer_a4')}</option>
+                  <option value="a5">{t('settings.printer_a5')}</option>
                 </select>
               </Field>
               <Field label={t('settings.thermal_width')}>
@@ -338,9 +338,9 @@ export default function SettingsPage() {
               </Field>
               <Field label={t('settings.receipt_language')}>
                 <select value={s.receipt_language || 'en'} onChange={e => set('receipt_language', e.target.value)} className="input">
-                  <option value="en">English</option>
-                  <option value="ar">Arabic</option>
-                  <option value="both">Bilingual (EN + AR)</option>
+                  <option value="en">{t('settings.lang_en')}</option>
+                  <option value="ar">{t('settings.lang_ar')}</option>
+                  <option value="both">{t('settings.lang_both')}</option>
                 </select>
               </Field>
             </div>
@@ -381,10 +381,10 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 space-y-2">
                   <h3 className="font-semibold text-amber-800 dark:text-amber-300">{t('settings.system_info')}</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="text-amber-600 dark:text-amber-400">App Version:</span> <span className="font-mono font-medium">1.0.0</span></div>
+                    <div><span className="text-amber-600 dark:text-amber-400">{t('settings.app_version')}:</span> <span className="font-mono font-medium">1.0.0</span></div>
                     <div><span className="text-amber-600 dark:text-amber-400">PHP:</span> <span className="font-mono font-medium">{s.php_version || '8.3'}</span></div>
-                    <div><span className="text-amber-600 dark:text-amber-400">Database:</span> <span className="font-mono font-medium">{s.db_version || 'MySQL 8.0'}</span></div>
-                    <div><span className="text-amber-600 dark:text-amber-400">Timezone:</span> <span className="font-mono font-medium">{s.timezone || 'Asia/Riyadh'}</span></div>
+                    <div><span className="text-amber-600 dark:text-amber-400">{t('settings.database')}:</span> <span className="font-mono font-medium">{s.db_version || 'MySQL 8.0'}</span></div>
+                    <div><span className="text-amber-600 dark:text-amber-400">{t('settings.timezone')}:</span> <span className="font-mono font-medium">{s.timezone || 'Asia/Riyadh'}</span></div>
                   </div>
                 </div>
               </div>

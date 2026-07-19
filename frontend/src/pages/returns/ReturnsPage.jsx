@@ -10,13 +10,19 @@ import { formatCurrency, formatDateTime } from '../../utils/format'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
+import i18n from '../../i18n/index.js'
+
 const PAYMENT_METHODS = [
-  { value: 'cash',          label: 'Cash' },
-  { value: 'visa',          label: 'Visa / Card' },
-  { value: 'wallet',        label: 'Wallet' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'mixed',         label: 'Mixed' },
+  { value: 'cash',          labelKey: 'payment.cash' },
+  { value: 'visa',          labelKey: 'payment.visa' },
+  { value: 'wallet',        labelKey: 'payment.wallet' },
+  { value: 'bank_transfer', labelKey: 'payment.bank_transfer' },
+  { value: 'mixed',         labelKey: 'payment.mixed' },
 ]
+const pmLabel = (value) => {
+  const pm = PAYMENT_METHODS.find(p => p.value === value)
+  return pm ? i18n.t(pm.labelKey) : '—'
+}
 
 function ReturnForm({ onSubmit, loading, initialSaleId }) {
   const { t } = useTranslation()
@@ -35,7 +41,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       setInvoiceNum(sale.invoice_number || '')
       setSource(sale)
       setSelectedItems((sale.items || []).map(it => ({ ...it, return_qty: 0 })))
-    }).catch(() => toast.error('Could not load sale')).finally(() => setSearching(false))
+    }).catch(() => toast.error(t('returns.load_failed'))).finally(() => setSearching(false))
   }, [initialSaleId])
   const [reason, setReason] = useState('')
   const [notes, setNotes] = useState('')
@@ -50,7 +56,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       const res = await get(endpoint)
       setSource(res.data)
       setSelectedItems((res.data.items || []).map(it => ({ ...it, return_qty: 0 })))
-    } catch { toast.error('Invoice not found') }
+    } catch { toast.error(t('returns.invoice_not_found')) }
     finally { setSearching(false) }
   }
 
@@ -132,10 +138,10 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
               <div key={idx} className="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.medicine_name}</p>
-                  <p className="text-xs text-gray-400">Max: {item.quantity} · {formatCurrency(item.unit_price)}</p>
+                  <p className="text-xs text-gray-400">{t('returns.max_qty')}: {item.quantity} · {formatCurrency(item.unit_price)}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-400">Return:</span>
+                  <span className="text-xs text-gray-400">{t('returns.return_qty')}:</span>
                   <input type="number" min="0" max={item.quantity} value={item.return_qty}
                     onChange={e => setQty(idx, e.target.value)}
                     className="w-16 text-center input py-1 text-sm" />
@@ -155,20 +161,20 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
               <button type="button" key={pm.value}
                 onClick={() => setPaymentMethod(pm.value)}
                 className={`py-2 rounded-xl text-sm font-medium border-2 transition-colors ${paymentMethod === pm.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}>
-                {pm.label}
+                {t(pm.labelKey)}
               </button>
             ))}
           </div>
           {paymentMethod === 'mixed' && (
             <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
-              {[['cash_amount','Cash'],['visa_amount','Visa'],['wallet_amount','Wallet'],['bank_transfer_amount','Bank Transfer']].map(([k, lbl]) => (
+              {[['cash_amount', t('payment.cash')],['visa_amount', t('payment.visa')],['wallet_amount', t('payment.wallet')],['bank_transfer_amount', t('payment.bank_transfer')]].map(([k, lbl]) => (
                 <div key={k}>
                   <label className="label text-xs">{lbl}</label>
                   <input type="number" step="any" min="0" value={mixedAmounts[k]} onChange={e => setMixedAmounts(a => ({ ...a, [k]: e.target.value }))} className="input text-sm" placeholder="0.000" />
                 </div>
               ))}
               <div className="col-span-2 flex justify-between text-sm font-semibold pt-1 border-t border-gray-200 dark:border-gray-600">
-                <span>Total Refund:</span>
+                <span>{t('returns.total_refund')}:</span>
                 <span className="text-green-600">{formatCurrency(totalRefund)}</span>
               </div>
             </div>
@@ -179,14 +185,14 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       <div>
         <label className="label">{t('returns.reason')} *</label>
         <select value={reason} onChange={e => setReason(e.target.value)} className="input" required>
-          <option value="">Select reason...</option>
-          <option>Expired product</option>
-          <option>Damaged product</option>
-          <option>Wrong medicine dispensed</option>
-          <option>Patient changed mind</option>
-          <option>Duplicate purchase</option>
-          <option>Quality issue</option>
-          <option>Other</option>
+          <option value="">{t('common.select')}</option>
+          <option value="Expired product">{t('returns.reasons.expired')}</option>
+          <option value="Damaged product">{t('returns.reasons.damaged')}</option>
+          <option value="Wrong medicine dispensed">{t('returns.reasons.wrong')}</option>
+          <option value="Patient changed mind">{t('returns.reasons.changed_mind')}</option>
+          <option value="Duplicate purchase">{t('returns.reasons.duplicate')}</option>
+          <option value="Quality issue">{t('returns.reasons.quality')}</option>
+          <option value="Other">{t('returns.reasons.other')}</option>
         </select>
       </div>
       <div><label className="label">{t('common.notes')}</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input resize-none" /></div>
@@ -206,17 +212,17 @@ function ReturnDetailModal({ returnItem }) {
       <div className="grid grid-cols-2 gap-3 text-sm">
         {[
           [t('returns.return_type'), returnItem.return_type === 'sale' ? t('returns.type_sale') : t('returns.type_purchase')],
-          ['Reference', returnItem.reference_invoice],
+          [t('returns.reference'), returnItem.reference_invoice],
           [t('returns.total_refund'), formatCurrency(returnItem.total_amount)],
-          [t('returns.refund_method'), PAYMENT_METHODS.find(p => p.value === returnItem.payment_method)?.label || '—'],
-          ['Processed By', returnItem.created_by_name],
-          [t('common.date'), returnItem.created_at ? new Date(returnItem.created_at).toLocaleString() : '—'],
+          [t('returns.refund_method'), pmLabel(returnItem.payment_method)],
+          [t('returns.processed_by'), returnItem.created_by_name],
+          [t('common.date'), formatDateTime(returnItem.created_at)],
         ].map(([l, v]) => (
           <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-semibold">{v || '—'}</p></div>
         ))}
         {returnItem.payment_method === 'mixed' && (
           <div className="col-span-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs">
-            {[['Cash', returnItem.cash_amount],['Visa', returnItem.visa_amount],['Wallet', returnItem.wallet_amount],['Bank Transfer', returnItem.bank_transfer_amount]].map(([l, v]) => v > 0 ? <div key={l}><span className="text-gray-400">{l}:</span> <span className="font-semibold">{formatCurrency(v)}</span></div> : null)}
+            {[[t('payment.cash'), returnItem.cash_amount],[t('payment.visa'), returnItem.visa_amount],[t('payment.wallet'), returnItem.wallet_amount],[t('payment.bank_transfer'), returnItem.bank_transfer_amount]].map(([l, v]) => v > 0 ? <div key={l}><span className="text-gray-400">{l}:</span> <span className="font-semibold">{formatCurrency(v)}</span></div> : null)}
           </div>
         )}
       </div>
@@ -227,7 +233,7 @@ function ReturnDetailModal({ returnItem }) {
       )}
       <div className="table-container">
         <table className="table">
-          <thead><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>{t('common.total')}</th></tr></thead>
+          <thead><tr><th>{t('purchases.medicine')}</th><th>{t('purchases.qty')}</th><th>{t('returns.price')}</th><th>{t('common.total')}</th></tr></thead>
           <tbody>
             {(returnItem.items || []).map((it, i) => (
               <tr key={i}>

@@ -12,6 +12,12 @@ import {
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n/index.js'
+
+// Render-time label translation: looks up reports.labels.<label> and falls
+// back to the English label itself (dots stripped — i18next treats them as
+// nesting separators)
+const L = (label) => label ? i18n.t(`reports.labels.${String(label).replace(/\./g, '')}`, { defaultValue: label }) : label
 
 const REPORT_TYPES = [
   { id: 'sales_daily',      label: 'Daily Sales',         icon: ChartBarIcon,        color: 'blue' },
@@ -61,7 +67,7 @@ function ReportTable({ columns, rows, emptyMsg = 'No data' }) {
   return (
     <div className="table-container">
       <table className="table">
-        <thead><tr>{columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
+        <thead><tr>{columns.map(c => <th key={c.key}>{L(c.label)}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>{columns.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key] ?? '—')}</td>)}</tr>
@@ -86,7 +92,7 @@ function SalesDailyReport({ data }) {
       </div>
       {chart.length > 0 && (
         <div className="card p-4">
-          <h3 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Daily Revenue</h3>
+          <h3 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">{L('Daily Revenue')}</h3>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={chart}>
               <defs>
@@ -344,7 +350,7 @@ const REPORT_COLUMNS = {
     { key: 'name', label: 'Medicine' },
     { key: 'current_stock', label: 'Stock', render: v => <span className="font-bold text-amber-500">{v}</span> },
     { key: 'total_sold', label: 'Sold (Period)' },
-    { key: 'last_sold', label: 'Last Sale', render: v => v ? formatDate(v) : 'Never' },
+    { key: 'last_sold', label: 'Last Sale', render: v => v ? formatDate(v) : L('Never') },
     { key: 'stock_value', label: 'Stock Value', render: v => formatCurrency(v) },
   ],
   expired: [
@@ -448,7 +454,7 @@ export default function ReportsPage() {
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-white/60 dark:bg-gray-800/60'}`}>
                 <Icon className={`w-5 h-5 ${isActive ? 'text-primary-600 dark:text-primary-400' : ''}`} />
               </div>
-              <span className={`font-medium text-sm ${isActive ? 'text-primary-700 dark:text-primary-400' : ''}`}>{rt.label}</span>
+              <span className={`font-medium text-sm ${isActive ? 'text-primary-700 dark:text-primary-400' : ''}`}>{L(rt.label)}</span>
             </button>
           )
         })}
@@ -459,7 +465,7 @@ export default function ReportsPage() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{activeReport?.label}</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{L(activeReport?.label)}</h2>
               <p className="text-xs text-gray-400 mt-0.5">{formatDate(dateFrom)} — {formatDate(dateTo)}</p>
             </div>
           </div>

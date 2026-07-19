@@ -7,7 +7,7 @@ import Pagination from '../../components/ui/Pagination'
 import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, formatDateTime } from '../../utils/format'
+import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
@@ -18,16 +18,16 @@ function SupplierForm({ initial, onSubmit, loading }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error(t('suppliers.required_name')); onSubmit(form) }} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Contact Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
-        <div><label className="label">Company Name</label><input value={form.company_name} onChange={e => set('company_name', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('suppliers.contact_name')} *</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('suppliers.company_name')}</label><input value={form.company_name} onChange={e => set('company_name', e.target.value)} className="input" /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="label">{t('common.phone')}</label><input value={form.phone} onChange={e => set('phone', e.target.value)} className="input" /></div>
         <div><label className="label">{t('common.email')}</label><input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="input" /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Tax Number</label><input value={form.tax_number} onChange={e => set('tax_number', e.target.value)} className="input" /></div>
-        <div><label className="label">Credit Limit</label><input type="number" min="0" value={form.credit_limit} onChange={e => set('credit_limit', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('suppliers.tax_number')}</label><input value={form.tax_number} onChange={e => set('tax_number', e.target.value)} className="input" /></div>
+        <div><label className="label">{t('suppliers.credit_limit')}</label><input type="number" min="0" value={form.credit_limit} onChange={e => set('credit_limit', e.target.value)} className="input" /></div>
       </div>
       <div><label className="label">{t('common.address')}</label><textarea value={form.address} onChange={e => set('address', e.target.value)} rows={2} className="input resize-none" /></div>
       <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
@@ -109,7 +109,7 @@ export default function SuppliersPage() {
                   <th>{t('suppliers.col_phone')}</th>
                   <th>{t('suppliers.col_email')}</th>
                   <th>{t('suppliers.col_balance')}</th>
-                  <th>Purchases</th>
+                  <th>{t('nav.purchases')}</th>
                   <th>{t('common.actions')}</th>
                 </tr>
               </thead>
@@ -153,26 +153,26 @@ export default function SuppliersPage() {
         <SupplierForm initial={editItem} onSubmit={handleSave} loading={saving} />
       </Modal>
 
-      <Modal open={modal === 'view'} onClose={() => setModal(null)} title={`Supplier: ${viewItem?.name}`} size="lg">
+      <Modal open={modal === 'view'} onClose={() => setModal(null)} title={viewItem?.name} size="lg">
         {viewItem && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">{t('common.phone')}:</span> <span className="font-medium">{viewItem.phone || '—'}</span></div>
               <div><span className="text-gray-500">{t('common.email')}:</span> <span className="font-medium">{viewItem.email || '—'}</span></div>
               <div><span className="text-gray-500">{t('suppliers.col_balance')}:</span> <span className={`font-medium ${viewItem.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>{formatCurrency(viewItem.balance)}</span></div>
-              <div><span className="text-gray-500">Credit Limit:</span> <span className="font-medium">{formatCurrency(viewItem.credit_limit)}</span></div>
+              <div><span className="text-gray-500">{t('suppliers.credit_limit')}:</span> <span className="font-medium">{formatCurrency(viewItem.credit_limit)}</span></div>
             </div>
-            <h4 className="font-semibold text-gray-900 dark:text-white">Recent Purchases</h4>
+            <h4 className="font-semibold text-gray-900 dark:text-white">{t('suppliers.recent_purchases')}</h4>
             <div className="table-container">
               <table className="table">
-                <thead><tr><th>Invoice</th><th>{t('common.date')}</th><th>{t('common.total')}</th><th>{t('common.status')}</th></tr></thead>
+                <thead><tr><th>{t('purchases.col_reference')}</th><th>{t('common.date')}</th><th>{t('common.total')}</th><th>{t('common.status')}</th></tr></thead>
                 <tbody>
                   {purchases.map(p => (
                     <tr key={p.id}>
                       <td className="font-mono text-xs">{p.invoice_number}</td>
                       <td>{formatDateTime(p.purchase_date)}</td>
                       <td className="font-medium">{formatCurrency(p.total)}</td>
-                      <td><span className={`badge badge-${p.payment_status === 'paid' ? 'green' : 'yellow'}`}>{p.payment_status}</span></td>
+                      <td><span className={`badge badge-${statusLabel(p.payment_status).color}`}>{statusLabel(p.payment_status).label}</span></td>
                     </tr>
                   ))}
                   {!purchases.length && <tr><td colSpan={4} className="text-center text-gray-400 py-4">{t('common.no_data')}</td></tr>}

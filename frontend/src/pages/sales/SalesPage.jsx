@@ -58,10 +58,10 @@ export default function SalesPage() {
           <label className="label text-xs">{t('sales.col_payment')}</label>
           <select value={payFilter} onChange={e => { setPayFilter(e.target.value); pg.setPage(1) }} className="input text-sm">
             <option value="">{t('batches.filter_all')}</option>
-            <option value="cash">Cash</option>
-            <option value="visa">Card</option>
-            <option value="wallet">Wallet</option>
-            <option value="split">Split</option>
+            <option value="cash">{t('payment.cash')}</option>
+            <option value="visa">{t('payment.visa')}</option>
+            <option value="wallet">{t('payment.wallet')}</option>
+            <option value="split">{t('payment.split')}</option>
           </select>
         </div>
         {(search || dateFrom || dateTo || payFilter) && (

@@ -27,7 +27,7 @@ function CustomerForm({ initial, onSubmit, loading }) {
         <div>
           <label className="label">{t('customers.gender')}</label>
           <select value={form.gender} onChange={e => set('gender', e.target.value)} className="input">
-            <option value="">Select...</option>
+            <option value="">{t('common.select')}</option>
             <option value="male">{t('customers.male')}</option>
             <option value="female">{t('customers.female')}</option>
             <option value="other">{t('customers.other')}</option>
@@ -171,7 +171,7 @@ export default function CustomersPage() {
             <h4 className="font-semibold">{t('customers.purchase_history')}</h4>
             <div className="table-container">
               <table className="table">
-                <thead><tr><th>Invoice</th><th>{t('common.date')}</th><th>{t('common.total')}</th><th>Points Earned</th></tr></thead>
+                <thead><tr><th>{t('sales.col_invoice')}</th><th>{t('common.date')}</th><th>{t('common.total')}</th><th>{t('customers.points_earned')}</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>

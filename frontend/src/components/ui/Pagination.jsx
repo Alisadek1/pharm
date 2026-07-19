@@ -1,6 +1,8 @@
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 export default function Pagination({ page, totalPages, total, perPage, onPageChange }) {
+  const { t } = useTranslation()
   if (totalPages <= 1) return null
 
   const from = (page - 1) * perPage + 1
@@ -18,18 +20,18 @@ export default function Pagination({ page, totalPages, total, perPage, onPageCha
   if (totalPages > 1) pages.push(totalPages)
 
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between px-4 py-3 flex-wrap gap-2">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        Showing <span className="font-medium text-gray-700 dark:text-gray-200">{from}–{to}</span> of{' '}
-        <span className="font-medium text-gray-700 dark:text-gray-200">{total}</span> results
+        {t('common.showing_results', { from, to, total })}
       </p>
-      <nav className="flex items-center gap-1">
+      <nav className="flex items-center gap-1" aria-label={t('common.pagination')}>
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
+          aria-label={t('common.previous')}
           className="p-1.5 rounded-lg disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
-          <ChevronLeftIcon className="w-4 h-4" />
+          <ChevronLeftIcon className="w-4 h-4 rtl:rotate-180" />
         </button>
         {pages.map((p, i) =>
           p === '...' ? (
@@ -38,6 +40,7 @@ export default function Pagination({ page, totalPages, total, perPage, onPageCha
             <button
               key={p}
               onClick={() => onPageChange(p)}
+              aria-current={p === page ? 'page' : undefined}
               className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
                 p === page
                   ? 'bg-primary-600 text-white'
@@ -51,9 +54,10 @@ export default function Pagination({ page, totalPages, total, perPage, onPageCha
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
+          aria-label={t('common.next')}
           className="p-1.5 rounded-lg disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
-          <ChevronRightIcon className="w-4 h-4" />
+          <ChevronRightIcon className="w-4 h-4 rtl:rotate-180" />
         </button>
       </nav>
     </div>

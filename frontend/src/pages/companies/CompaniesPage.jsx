@@ -30,7 +30,7 @@ function CompanyForm({ initial, onSubmit, loading }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">{t('companies.country')}</label>
-          <input value={form.country} onChange={e => set('country', e.target.value)} className="input" placeholder="Saudi Arabia" />
+          <input value={form.country} onChange={e => set('country', e.target.value)} className="input" placeholder={t('companies.country_placeholder')} />
         </div>
         <div>
           <label className="label">{t('common.phone')}</label>

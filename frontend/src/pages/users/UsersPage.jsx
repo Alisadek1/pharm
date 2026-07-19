@@ -45,7 +45,7 @@ function UserForm({ initial, roles, onSubmit, loading }) {
       <div>
         <label className="label">{t('users.role')} *</label>
         <select value={form.role_id} onChange={e => set('role_id', e.target.value)} className="input" required>
-          <option value="">— Select Role —</option>
+          <option value="">{t('common.select')}</option>
           {roles.map(r => <option key={r.id} value={r.id}>{r.display_name}</option>)}
         </select>
       </div>

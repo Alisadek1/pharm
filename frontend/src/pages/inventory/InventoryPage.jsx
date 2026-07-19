@@ -41,16 +41,16 @@ function AdjustForm({ medicines, onSubmit, loading }) {
       <div>
         <label className="label">{t('inventory.col_medicine')} *</label>
         <select value={form.medicine_id} onChange={e => handleMedChange(e.target.value)} className="input" required>
-          <option value="">— Select Medicine —</option>
-          {medicines.map(m => <option key={m.id} value={m.id}>{m.name} (Stock: {m.current_stock})</option>)}
+          <option value="">{t('common.select')}</option>
+          {medicines.map(m => <option key={m.id} value={m.id}>{m.name} ({t('inventory.col_stock')}: {m.current_stock})</option>)}
         </select>
       </div>
       {medBatches.length > 0 && (
         <div>
-          <label className="label">Batch (Optional)</label>
+          <label className="label">{t('inventory.batch')} ({t('common.optional_label')})</label>
           <select value={form.batch_id} onChange={e => set('batch_id', e.target.value)} className="input">
-            <option value="">All batches</option>
-            {medBatches.map(b => <option key={b.id} value={b.id}>{b.batch_number} — Qty: {b.quantity} — Exp: {b.expiry_date}</option>)}
+            <option value="">{t('inventory.all_batches')}</option>
+            {medBatches.map(b => <option key={b.id} value={b.id}>{b.batch_number} — {t('inventory.col_quantity')}: {b.quantity} — {b.expiry_date}</option>)}
           </select>
         </div>
       )}
@@ -71,15 +71,15 @@ function AdjustForm({ medicines, onSubmit, loading }) {
       </div>
       <div><label className="label">{t('inventory.col_quantity')} *</label><input type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required /></div>
       <div>
-        <label className="label">Reason *</label>
+        <label className="label">{t('inventory.reason')} *</label>
         <select value={form.reason} onChange={e => set('reason', e.target.value)} className="input" required>
-          <option value="">Select reason...</option>
-          <option>Damage/Breakage</option>
-          <option>Theft/Loss</option>
-          <option>Expired removal</option>
-          <option>Count correction</option>
-          <option>Transfer</option>
-          <option>Other</option>
+          <option value="">{t('common.select')}</option>
+          <option value="Damage/Breakage">{t('inventory.reasons.damage')}</option>
+          <option value="Theft/Loss">{t('inventory.reasons.theft')}</option>
+          <option value="Expired removal">{t('inventory.reasons.expired')}</option>
+          <option value="Count correction">{t('inventory.reasons.correction')}</option>
+          <option value="Transfer">{t('inventory.reasons.transfer')}</option>
+          <option value="Other">{t('inventory.reasons.other')}</option>
         </select>
       </div>
       <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>

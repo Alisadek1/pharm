@@ -12,15 +12,15 @@ import api from '../services/api'
 import { useTranslation } from 'react-i18next'
 
 const TYPE_META = {
-  low_stock:   { icon: ExclamationTriangleIcon, color: 'amber',  label: 'Low Stock' },
-  expired:     { icon: ExclamationCircleIcon,   color: 'red',    label: 'Expired' },
-  near_expiry: { icon: ExclamationTriangleIcon, color: 'orange', label: 'Near Expiry' },
-  purchase_due:{ icon: InformationCircleIcon,   color: 'blue',   label: 'Purchase Due' },
-  customer_due:{ icon: InformationCircleIcon,   color: 'purple', label: 'Customer Due' },
-  info:        { icon: InformationCircleIcon,   color: 'blue',   label: 'Info' },
-  success:     { icon: CheckCircleIcon,         color: 'green',  label: 'Success' },
-  warning:     { icon: ExclamationTriangleIcon, color: 'amber',  label: 'Warning' },
-  error:       { icon: ExclamationCircleIcon,   color: 'red',    label: 'Error' },
+  low_stock:   { icon: ExclamationTriangleIcon, color: 'amber',  labelKey: 'notifications.types.low_stock' },
+  expired:     { icon: ExclamationCircleIcon,   color: 'red',    labelKey: 'notifications.types.expired' },
+  near_expiry: { icon: ExclamationTriangleIcon, color: 'orange', labelKey: 'notifications.types.near_expiry' },
+  purchase_due:{ icon: InformationCircleIcon,   color: 'blue',   labelKey: 'notifications.types.purchase_due' },
+  customer_due:{ icon: InformationCircleIcon,   color: 'purple', labelKey: 'notifications.types.customer_due' },
+  info:        { icon: InformationCircleIcon,   color: 'blue',   labelKey: 'notifications.types.info' },
+  success:     { icon: CheckCircleIcon,         color: 'green',  labelKey: 'notifications.types.success' },
+  warning:     { icon: ExclamationTriangleIcon, color: 'amber',  labelKey: 'notifications.types.warning' },
+  error:       { icon: ExclamationCircleIcon,   color: 'red',    labelKey: 'notifications.types.error' },
 }
 
 const ICON_BG = {
@@ -69,7 +69,7 @@ export default function NotificationsPage() {
       await api.patch('/api/notifications/read-all')
       setRows(prev => prev.map(r => ({ ...r, is_read: true })))
       toast.success(t('notifications.marked_all_read'))
-    } catch { toast.error('Failed') }
+    } catch { toast.error(t('common.failed')) }
     finally { setMarkingAll(false) }
   }
 
@@ -100,11 +100,11 @@ export default function NotificationsPage() {
             {l}
           </button>
         ))}
-        <div className="h-6 border-l border-gray-200 dark:border-gray-600 mx-1 self-center" />
+        <div className="h-6 border-s border-gray-200 dark:border-gray-600 mx-1 self-center" />
         {Object.entries(TYPE_META).slice(0, 5).map(([v, meta]) => (
           <button key={v} onClick={() => { setTypeFilter(typeFilter === v ? '' : v); pg.setPage(1) }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter === v ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200'}`}>
-            {meta.label}
+            {t(meta.labelKey)}
           </button>
         ))}
       </div>
@@ -165,7 +165,7 @@ export default function NotificationsPage() {
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${!notif.is_read ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
                     <span className="text-[11px] text-gray-400">{formatDateTime(notif.created_at)}</span>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${bgCls}`}>{meta.label}</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${bgCls}`}>{t(meta.labelKey)}</span>
                   </div>
                 </div>
               </div>
