@@ -175,7 +175,7 @@ export default function InventoryPage() {
                 {rows.map(row => {
                   const s = stockStatus(row.current_stock, row.minimum_stock)
                   const value = parseFloat(row.current_stock) * parseFloat(row.purchase_price)
-                  const valuePublic = parseFloat(row.current_stock) * parseFloat(row.selling_price)
+                  const valuePublic = parseFloat(row.current_stock) * parseFloat(row.public_price || row.selling_price)
                   return (
                     <tr key={row.id}>
                       <td>
@@ -185,7 +185,7 @@ export default function InventoryPage() {
                       <td className="font-mono text-xs text-gray-500">{row.sku}</td>
                       <td>{row.category_name || '—'}</td>
                       <td>{formatCurrency(row.purchase_price)}</td>
-                      <td className="font-semibold">{formatCurrency(row.selling_price)}</td>
+                      <td className="font-semibold">{formatCurrency(row.public_price || row.selling_price)}</td>
                       <td className="font-bold text-lg">{row.current_stock}</td>
                       <td className="text-gray-500">{row.minimum_stock}</td>
                       <td>{formatCurrency(value)}</td>

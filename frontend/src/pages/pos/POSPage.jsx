@@ -117,7 +117,7 @@ export default function POSPage() {
         name:         medicine.name,
         name_ar:      medicine.name_ar,
         barcode:      medicine.barcode,
-        unit_price:   parseFloat(medicine.selling_price),
+        unit_price:   parseFloat(medicine.public_price || medicine.selling_price),
         quantity:     1,
         discount_amount: 0,
         max_stock:    parseInt(medicine.current_stock),
@@ -293,7 +293,7 @@ export default function POSPage() {
                       <p className="text-xs text-gray-400">{med.barcode || med.sku} · Stock: {med.current_stock}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-primary-600 dark:text-primary-400">{formatCurrency(med.selling_price)}</p>
+                      <p className="font-bold text-primary-600 dark:text-primary-400">{formatCurrency(med.public_price || med.selling_price)}</p>
                       {med.prescription_required && <span className="text-[10px] text-blue-500">Rx</span>}
                     </div>
                   </button>

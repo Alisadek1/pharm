@@ -150,7 +150,7 @@ class PurchaseController
                 $qty         = (int)($item['quantity'] ?? 0);
                 $purchPrice  = (float)($item['purchase_price'] ?? 0);
                 $publicPrice = (float)($item['public_price'] ?? 0);
-                $sellPrice   = (float)($item['selling_price'] ?? 0);
+                $sellPrice   = $publicPrice;
                 $expiryDate  = $item['expiry_date'] ?? null;
                 $mfgDate     = $item['manufacturing_date'] ?? null;
 

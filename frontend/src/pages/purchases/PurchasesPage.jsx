@@ -18,10 +18,10 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
     discount_type: 'fixed', discount_value: 0, tax_rate: 15, paid_amount: '',
     notes: '', status: 'received',
   })
-  const [items, setItems] = useState([{ medicine_id: '', batch_number: '', expiry_date: '', manufacturing_date: '', quantity: 1, purchase_price: '', public_price: '', selling_price: '' }])
+  const [items, setItems] = useState([{ medicine_id: '', batch_number: '', expiry_date: '', manufacturing_date: '', quantity: 1, purchase_price: '', public_price: '' }])
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const addItem = () => setItems(it => [...it, { medicine_id: '', batch_number: '', expiry_date: '', manufacturing_date: '', quantity: 1, purchase_price: '', public_price: '', selling_price: '' }])
+  const addItem = () => setItems(it => [...it, { medicine_id: '', batch_number: '', expiry_date: '', manufacturing_date: '', quantity: 1, purchase_price: '', public_price: '' }])
   const removeItem = (idx) => setItems(it => it.filter((_, i) => i !== idx))
   const setItem = (idx, k, v) => setItems(it => it.map((item, i) => i === idx ? { ...item, [k]: v } : item))
 
@@ -58,13 +58,13 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
         </div>
         <div className="space-y-2">
           {items.map((item, idx) => (
-            <div key={idx} className="grid grid-cols-8 gap-2 items-end p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+            <div key={idx} className="grid grid-cols-7 gap-2 items-end p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
               <div className="col-span-2">
                 {idx === 0 && <label className="label text-xs">{t('purchases.medicine')}</label>}
                 <select value={item.medicine_id} onChange={e => {
                   const med = medicines.find(m => m.id == e.target.value)
                   setItem(idx, 'medicine_id', e.target.value)
-                  if (med) { setItem(idx, 'purchase_price', med.purchase_price); setItem(idx, 'public_price', med.public_price || ''); setItem(idx, 'selling_price', med.selling_price) }
+                  if (med) { setItem(idx, 'purchase_price', med.purchase_price); setItem(idx, 'public_price', med.public_price || '') }
                 }} className="input text-xs">
                   <option value="">Select...</option>
                   {medicines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -86,14 +86,10 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
                 {idx === 0 && <label className="label text-xs">{t('purchases.pharmacist_price')}</label>}
                 <input type="number" step="0.001" min="0" value={item.purchase_price} onChange={e => setItem(idx, 'purchase_price', e.target.value)} className="input text-xs" />
               </div>
-              <div>
-                {idx === 0 && <label className="label text-xs">{t('purchases.public_price')}</label>}
-                <input type="number" step="0.001" min="0" value={item.public_price} onChange={e => setItem(idx, 'public_price', e.target.value)} className="input text-xs" placeholder="0.000" />
-              </div>
               <div className="flex gap-1 items-end">
                 <div className="flex-1">
-                  {idx === 0 && <label className="label text-xs">{t('purchases.sell_price')}</label>}
-                  <input type="number" step="0.001" min="0" value={item.selling_price} onChange={e => setItem(idx, 'selling_price', e.target.value)} className="input text-xs" />
+                  {idx === 0 && <label className="label text-xs">{t('purchases.public_price')}</label>}
+                  <input type="number" step="0.001" min="0" value={item.public_price} onChange={e => setItem(idx, 'public_price', e.target.value)} className="input text-xs" placeholder="0.000" />
                 </div>
                 {items.length > 1 && (
                   <button type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg mb-0.5">×</button>

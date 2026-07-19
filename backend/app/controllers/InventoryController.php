@@ -56,7 +56,7 @@ class InventoryController
         $offset = ($page - 1) * $perPage;
         $stmt   = $db->prepare("
             SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.unit,
-                   m.purchase_price, m.selling_price, m.minimum_stock,
+                   m.purchase_price, m.selling_price, m.public_price, m.minimum_stock,
                    c.name as category_name, co.name as company_name,
                    COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b
                              WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,

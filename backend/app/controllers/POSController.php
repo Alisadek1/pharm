@@ -284,7 +284,7 @@ class POSController
         $db   = Database::getInstance();
 
         $stmt = $db->prepare("
-            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.unit,
+            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.public_price, m.unit,
                    m.prescription_required, m.controlled_drug,
                    COALESCE((
                        SELECT SUM(b.quantity) FROM medicine_batches b

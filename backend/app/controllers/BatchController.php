@@ -78,7 +78,7 @@ class BatchController
             'batch_number'   => 'required|string|maxlength:100',
             'expiry_date'    => 'required|date',
             'purchase_price' => 'required|numeric|min:0',
-            'selling_price'  => 'required|numeric|min:0',
+            'public_price'   => 'required|numeric|min:0',
             'quantity'       => 'required|integer|min:0',
         ]);
 
@@ -103,10 +103,11 @@ class BatchController
         }
 
         $qty  = (int)$body['quantity'];
+        $publicPrice = (float)$body['public_price'];
         $stmt = $db->prepare("
             INSERT INTO medicine_batches (medicine_id, supplier_id, batch_number, manufacturing_date,
-                expiry_date, purchase_price, selling_price, quantity, initial_quantity, notes, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                expiry_date, purchase_price, selling_price, public_price, quantity, initial_quantity, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             (int)$body['medicine_id'],
@@ -115,7 +116,8 @@ class BatchController
             $body['manufacturing_date'] ?? null,
             trim($body['expiry_date']),
             (float)$body['purchase_price'],
-            (float)$body['selling_price'],
+            $publicPrice,
+            $publicPrice,
             $qty,
             $qty,
             trim($body['notes'] ?? ''),
@@ -176,24 +178,26 @@ class BatchController
         $validator = Validator::make($body, [
             'expiry_date'    => 'required|date',
             'purchase_price' => 'required|numeric|min:0',
-            'selling_price'  => 'required|numeric|min:0',
+            'public_price'   => 'required|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
             Response::validationError($validator->errors());
         }
 
+        $publicPrice = (float)$body['public_price'];
         $db->prepare("
             UPDATE medicine_batches SET
                 supplier_id=?, manufacturing_date=?, expiry_date=?,
-                purchase_price=?, selling_price=?, notes=?
+                purchase_price=?, selling_price=?, public_price=?, notes=?
             WHERE id = ?
         ")->execute([
             !empty($body['supplier_id']) ? (int)$body['supplier_id'] : $batch['supplier_id'],
             $body['manufacturing_date'] ?? $batch['manufacturing_date'],
             trim($body['expiry_date']),
             (float)$body['purchase_price'],
-            (float)$body['selling_price'],
+            $publicPrice,
+            $publicPrice,
             trim($body['notes'] ?? $batch['notes']),
             $id,
         ]);

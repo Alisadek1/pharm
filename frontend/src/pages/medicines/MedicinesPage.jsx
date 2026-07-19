@@ -18,7 +18,7 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   const { t } = useTranslation()
   const [form, setForm] = useState(initial || {
     name: '', name_ar: '', scientific_name: '', barcode: '', sku: '', category_id: '', company_id: '',
-    dosage_form: '', strength: '', unit: 'Piece', purchase_price: '', selling_price: '', public_price: '',
+    dosage_form: '', strength: '', unit: 'Piece', purchase_price: '', public_price: '',
     minimum_stock: 10, prescription_required: false, controlled_drug: false, description: '', is_active: true,
   })
   const [imageFile, setImageFile] = useState(null)
@@ -27,7 +27,7 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) return toast.error(t('medicines.required_name'))
-    if (!form.selling_price) return toast.error(t('medicines.required_price'))
+    if (!form.public_price) return toast.error(t('medicines.required_price'))
 
     const fd = new FormData()
     Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''))
@@ -67,10 +67,9 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
         <div><label className="label">{t('medicines.strength')}</label><input value={form.strength} onChange={e => set('strength', e.target.value)} className="input" placeholder={t('medicines.strength_placeholder')} /></div>
         <div><label className="label">{t('medicines.unit')}</label><input value={form.unit} onChange={e => set('unit', e.target.value)} className="input" /></div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div><label className="label">{t('medicines.pharmacist_price')}</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('medicines.public_price')}</label><input type="number" step="0.001" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" placeholder="0.000" /></div>
-        <div><label className="label">{t('medicines.selling_price')}</label><input type="number" step="0.001" min="0" value={form.selling_price} onChange={e => set('selling_price', e.target.value)} className="input" required /></div>
+      <div className="grid grid-cols-3 gap-4">
+        <div><label className="label">{t('medicines.pharmacist_price')} *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="0.001" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
         <div><label className="label">{t('medicines.min_stock')}</label><input type="number" min="0" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)} className="input" /></div>
       </div>
       <div>
@@ -239,7 +238,7 @@ export default function MedicinesPage() {
                       <td className="font-mono text-xs text-gray-500">{row.barcode || row.sku}</td>
                       <td>{row.category_name || '—'}</td>
                       <td>{formatCurrency(row.purchase_price)}</td>
-                      <td className="font-semibold">{formatCurrency(row.selling_price)}</td>
+                      <td className="font-semibold">{formatCurrency(row.public_price)}</td>
                       <td>
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium">{row.current_stock}</span>

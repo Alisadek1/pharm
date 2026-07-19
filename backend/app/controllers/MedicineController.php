@@ -73,7 +73,7 @@ class MedicineController
 
         $validator = Validator::make($body, [
             'name'          => 'required|string|maxlength:200',
-            'selling_price' => 'required|numeric|min:0',
+            'public_price'  => 'required|numeric|min:0',
             'purchase_price'=> 'required|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',
         ]);
@@ -132,8 +132,8 @@ class MedicineController
             trim($body['strength'] ?? ''),
             trim($body['unit'] ?? 'Piece'),
             (float)$body['purchase_price'],
-            (float)$body['selling_price'],
-            (float)($body['public_price'] ?? 0),
+            (float)$body['public_price'],
+            (float)$body['public_price'],
             (int)$body['minimum_stock'],
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : 0,
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : 0,
@@ -181,7 +181,7 @@ class MedicineController
 
         $validator = Validator::make($body, [
             'name'          => 'required|string|maxlength:200',
-            'selling_price' => 'required|numeric|min:0',
+            'public_price'  => 'required|numeric|min:0',
             'purchase_price'=> 'required|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',
         ]);
@@ -229,8 +229,8 @@ class MedicineController
             trim($body['strength'] ?? $existing['strength']),
             trim($body['unit'] ?? $existing['unit']),
             (float)$body['purchase_price'],
-            (float)$body['selling_price'],
-            (float)($body['public_price'] ?? $existing['public_price'] ?? 0),
+            (float)$body['public_price'],
+            (float)$body['public_price'],
             (int)$body['minimum_stock'],
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : $existing['prescription_required'],
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : $existing['controlled_drug'],
@@ -307,7 +307,7 @@ class MedicineController
 
         $db   = Database::getInstance();
         $stmt = $db->prepare("
-            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.unit,
+            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.public_price, m.unit,
                    m.prescription_required, m.controlled_drug,
                    c.name as category_name,
                    COALESCE((
@@ -423,7 +423,7 @@ class MedicineController
                     continue;
                 }
 
-                [$name, $barcode, $purchasePrice, $sellingPrice] = array_pad($data, 8, '');
+                [$name, $barcode, $purchasePrice, $publicPrice] = array_pad($data, 8, '');
 
                 if (empty(trim($name))) {
                     $errors[] = "Row {$row}: name is required";
@@ -441,15 +441,16 @@ class MedicineController
 
                 $sku  = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
                 $stmt = $db->prepare("
-                    INSERT INTO medicines (name, barcode, sku, purchase_price, selling_price, minimum_stock, is_active, created_by)
-                    VALUES (?, ?, ?, ?, ?, 10, 1, ?)
+                    INSERT INTO medicines (name, barcode, sku, purchase_price, selling_price, public_price, minimum_stock, is_active, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, 10, 1, ?)
                 ");
                 $stmt->execute([
                     trim($name),
                     !empty(trim($barcode)) ? trim($barcode) : null,
                     $sku,
                     (float)$purchasePrice,
-                    (float)$sellingPrice,
+                    (float)$publicPrice,
+                    (float)$publicPrice,
                     $user['id'],
                 ]);
                 $imported++;
@@ -476,7 +477,7 @@ class MedicineController
         $stmt = $db->query("
             SELECT m.name, m.name_ar, m.scientific_name, m.barcode, m.sku,
                    c.name as category, co.name as company,
-                   m.purchase_price, m.selling_price, m.minimum_stock,
+                   m.purchase_price, m.public_price, m.minimum_stock,
                    m.dosage_form, m.strength, m.unit, m.prescription_required, m.controlled_drug,
                    COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock
             FROM medicines m
@@ -492,7 +493,7 @@ class MedicineController
 
         $out = fopen('php://output', 'w');
         fputcsv($out, ['Name', 'Arabic Name', 'Scientific Name', 'Barcode', 'SKU', 'Category', 'Company',
-                        'Purchase Price', 'Selling Price', 'Min Stock', 'Dosage Form', 'Strength', 'Unit',
+                        'Purchase Price', 'Public Price', 'Min Stock', 'Dosage Form', 'Strength', 'Unit',
                         'Prescription Required', 'Controlled Drug', 'Current Stock']);
 
         foreach ($medicines as $medicine) {

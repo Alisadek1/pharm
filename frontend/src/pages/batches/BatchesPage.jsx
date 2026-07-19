@@ -15,7 +15,7 @@ function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
   const { t } = useTranslation()
   const [form, setForm] = useState(initial || {
     medicine_id: '', supplier_id: '', batch_number: '', manufacturing_date: '',
-    expiry_date: '', purchase_price: '', selling_price: '', quantity: '', notes: '',
+    expiry_date: '', purchase_price: '', public_price: '', quantity: '', notes: '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -52,7 +52,7 @@ function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
       </div>
       <div className="grid grid-cols-3 gap-4">
         <div><label className="label">{t('batches.col_pharmacist_price')} *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('batches.col_sell_price')} *</label><input type="number" step="0.001" min="0" value={form.selling_price} onChange={e => set('selling_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="0.001" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
         <div><label className="label">{t('batches.col_quantity')} {initial ? '' : '*'}</label><input type="number" min="0" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required={!initial} /></div>
       </div>
       <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
@@ -168,7 +168,7 @@ export default function BatchesPage() {
                         <span className={`badge badge-${exp.color}`}>{exp.label}</span>
                       </td>
                       <td>{formatCurrency(row.purchase_price)}</td>
-                      <td className="font-semibold">{formatCurrency(row.selling_price)}</td>
+                      <td className="font-semibold">{formatCurrency(row.public_price || row.selling_price)}</td>
                       <td className={`font-bold ${row.quantity === 0 ? 'text-red-500' : row.quantity < 10 ? 'text-amber-500' : 'text-gray-900 dark:text-white'}`}>
                         {row.quantity}
                       </td>
