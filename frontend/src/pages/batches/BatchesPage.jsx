@@ -13,7 +13,10 @@ import { useTranslation } from 'react-i18next'
 
 function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState(initial || {
+  const [form, setForm] = useState(initial ? {
+    ...initial,
+    public_price: parseFloat(initial.public_price) > 0 ? initial.public_price : (initial.selling_price || ''),
+  } : {
     medicine_id: '', supplier_id: '', batch_number: '', manufacturing_date: '',
     expiry_date: '', purchase_price: '', public_price: '', quantity: '', notes: '',
   })

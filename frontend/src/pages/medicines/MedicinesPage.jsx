@@ -16,7 +16,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost/pharm/backend
 
 function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState(initial || {
+  const [form, setForm] = useState(initial ? {
+    ...initial,
+    public_price: parseFloat(initial.public_price) > 0 ? initial.public_price : (initial.selling_price || ''),
+  } : {
     name: '', name_ar: '', scientific_name: '', barcode: '', sku: '', category_id: '', company_id: '',
     dosage_form: '', strength: '', unit: 'Piece', purchase_price: '', public_price: '',
     minimum_stock: 10, prescription_required: false, controlled_drug: false, description: '', is_active: true,
