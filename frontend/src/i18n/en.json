@@ -333,7 +333,8 @@
     "no_purchases": "No purchases found",
     "created": "Purchase created",
     "updated": "Purchase updated",
-    "save_failed": "Save failed"
+    "save_failed": "Save failed",
+    "required_expiry": "Expiry date is required for every item"
   },
   "batches": {
     "title": "Batches",

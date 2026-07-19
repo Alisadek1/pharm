@@ -34,6 +34,9 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
     e.preventDefault()
     const validItems = items.filter(it => it.medicine_id && it.quantity > 0 && it.purchase_price)
     if (!validItems.length) return toast.error('Add at least one item')
+    if (form.status !== 'ordered' && validItems.some(it => !it.expiry_date)) {
+      return toast.error(t('purchases.required_expiry'))
+    }
     onSubmit({ ...form, items: JSON.stringify(validItems), paid_amount: form.paid_amount || total.toFixed(3) })
   }
 
@@ -75,8 +78,8 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
                 <input value={item.batch_number} onChange={e => setItem(idx, 'batch_number', e.target.value)} className="input text-xs font-mono" placeholder="B001" />
               </div>
               <div>
-                {idx === 0 && <label className="label text-xs">{t('purchases.expiry')}</label>}
-                <input type="date" value={item.expiry_date} onChange={e => setItem(idx, 'expiry_date', e.target.value)} className="input text-xs" />
+                {idx === 0 && <label className="label text-xs">{t('purchases.expiry')} *</label>}
+                <input type="date" value={item.expiry_date} onChange={e => setItem(idx, 'expiry_date', e.target.value)} className="input text-xs" required={form.status !== 'ordered' && !!item.medicine_id} />
               </div>
               <div>
                 {idx === 0 && <label className="label text-xs">{t('purchases.qty')}</label>}

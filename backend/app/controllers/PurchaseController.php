@@ -88,6 +88,18 @@ class PurchaseController
             Response::error('Purchase items are required');
         }
 
+        // Expiry date is mandatory for every received item — without it the
+        // stock cannot enter batch/expiry tracking
+        if (($body['status'] ?? 'received') !== 'ordered') {
+            foreach ($items as $item) {
+                $mid = (int)($item['medicine_id'] ?? 0);
+                $q   = (int)($item['quantity'] ?? 0);
+                if ($mid > 0 && $q > 0 && empty($item['expiry_date'])) {
+                    Response::error('Expiry date is required for every item');
+                }
+            }
+        }
+
         $db = Database::getInstance();
 
         // Generate invoice number
@@ -151,8 +163,8 @@ class PurchaseController
                 $purchPrice  = (float)($item['purchase_price'] ?? 0);
                 $publicPrice = (float)($item['public_price'] ?? 0);
                 $sellPrice   = $publicPrice;
-                $expiryDate  = $item['expiry_date'] ?? null;
-                $mfgDate     = $item['manufacturing_date'] ?? null;
+                $expiryDate  = !empty($item['expiry_date']) ? $item['expiry_date'] : null;
+                $mfgDate     = !empty($item['manufacturing_date']) ? $item['manufacturing_date'] : null;
 
                 if ($medicineId <= 0 || $qty <= 0) {
                     continue;
@@ -166,37 +178,41 @@ class PurchaseController
                 $batchId = null;
 
                 if ($body['status'] !== 'ordered') {
-                    // Create or update batch
-                    if (!empty($batchNum) && $expiryDate) {
-                        $existBatch = $db->prepare("SELECT id, quantity FROM medicine_batches WHERE medicine_id = ? AND batch_number = ?");
+                    // Find an existing batch to merge into: by batch number if
+                    // given, otherwise by expiry date
+                    if (!empty($batchNum)) {
+                        $existBatch = $db->prepare("SELECT id FROM medicine_batches WHERE medicine_id = ? AND batch_number = ?");
                         $existBatch->execute([$medicineId, $batchNum]);
-                        $existing = $existBatch->fetch();
+                    } else {
+                        $existBatch = $db->prepare("SELECT id FROM medicine_batches WHERE medicine_id = ? AND expiry_date = ? ORDER BY id DESC LIMIT 1");
+                        $existBatch->execute([$medicineId, $expiryDate]);
+                    }
+                    $existing = $existBatch->fetch();
 
-                        if ($existing) {
-                            $batchId = $existing['id'];
-                            $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                               ->execute([$qty, $batchId]);
-                        } else {
-                            $batchStmt = $db->prepare("
-                                INSERT INTO medicine_batches (medicine_id, supplier_id, batch_number, manufacturing_date,
-                                    expiry_date, purchase_price, selling_price, public_price, quantity, initial_quantity, created_by)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ");
-                            $batchStmt->execute([
-                                $medicineId,
-                                !empty($body['supplier_id']) ? (int)$body['supplier_id'] : null,
-                                $batchNum,
-                                $mfgDate,
-                                $expiryDate,
-                                $purchPrice,
-                                $sellPrice,
-                                $publicPrice,
-                                $qty,
-                                $qty,
-                                $user['id'],
-                            ]);
-                            $batchId = (int)$db->lastInsertId();
-                        }
+                    if ($existing) {
+                        $batchId = $existing['id'];
+                        $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
+                           ->execute([$qty, $batchId]);
+                    } else {
+                        $batchStmt = $db->prepare("
+                            INSERT INTO medicine_batches (medicine_id, supplier_id, batch_number, manufacturing_date,
+                                expiry_date, purchase_price, selling_price, public_price, quantity, initial_quantity, created_by)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $batchStmt->execute([
+                            $medicineId,
+                            !empty($body['supplier_id']) ? (int)$body['supplier_id'] : null,
+                            $batchNum ?: 'PUR-' . date('Ymd-His') . '-' . $medicineId,
+                            $mfgDate,
+                            $expiryDate,
+                            $purchPrice,
+                            $sellPrice,
+                            $publicPrice,
+                            $qty,
+                            $qty,
+                            $user['id'],
+                        ]);
+                        $batchId = (int)$db->lastInsertId();
                     }
 
                     // Update medicine default prices
