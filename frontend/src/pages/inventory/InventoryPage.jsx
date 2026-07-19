@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 
 function AdjustForm({ medicines, onSubmit, loading }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState({ medicine_id: '', batch_id: '', type: 'add', quantity: '', reason: '', notes: '' })
+  const [form, setForm] = useState({ medicine_id: '', batch_id: '', type: 'add', quantity: '', expiry_date: '', reason: '', notes: '' })
   const [medBatches, setMedBatches] = useState([])
   const { get } = useApi()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -32,6 +32,7 @@ function AdjustForm({ medicines, onSubmit, loading }) {
     e.preventDefault()
     if (!form.medicine_id) return toast.error(t('inventory.required_medicine'))
     if (!form.quantity || form.quantity <= 0) return toast.error(t('inventory.required_quantity'))
+    if (form.type === 'add' && !form.batch_id && !form.expiry_date) return toast.error(t('inventory.required_expiry'))
     if (!form.reason.trim()) return toast.error(t('inventory.required_reason'))
     onSubmit(form)
   }
@@ -70,6 +71,9 @@ function AdjustForm({ medicines, onSubmit, loading }) {
         </div>
       </div>
       <div><label className="label">{t('inventory.col_quantity')} *</label><input type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required /></div>
+      {form.type === 'add' && !form.batch_id && (
+        <div><label className="label">{t('batches.col_expiry')} *</label><input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} className="input" required /></div>
+      )}
       <div>
         <label className="label">Reason *</label>
         <select value={form.reason} onChange={e => set('reason', e.target.value)} className="input" required>

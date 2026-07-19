@@ -241,35 +241,69 @@ class InventoryController
                     $db->prepare("UPDATE medicine_batches SET quantity = ? WHERE id = ?")->execute([$qty, $batchId]);
                 }
             } else {
-                // Apply to most recent non-expired batch (include qty=0 so 'add' works on empty stock)
-                $batch = $db->prepare("
-                    SELECT id, quantity FROM medicine_batches
-                    WHERE medicine_id = ? AND expiry_date >= CURDATE()
-                    ORDER BY quantity DESC, expiry_date DESC LIMIT 1
-                ");
-                $batch->execute([$medicineId]);
-                $b = $batch->fetch();
+                $expiryDate = trim($body['expiry_date'] ?? '');
 
-                if ($b) {
-                    $newQty = max(0, (int)$b['quantity'] + $qtyChange);
-                    $db->prepare("UPDATE medicine_batches SET quantity = ? WHERE id = ?")->execute([$newQty, $b['id']]);
-                } elseif ($type === 'add') {
-                    // No batch exists — create one automatically
-                    $med = $db->prepare("SELECT purchase_price, selling_price FROM medicines WHERE id = ?");
-                    $med->execute([$medicineId]);
-                    $m = $med->fetch();
-                    $batchNum = 'ADJ-' . date('Ymd') . '-' . $medicineId;
-                    $db->prepare("
-                        INSERT INTO medicine_batches
-                            (medicine_id, batch_number, manufacturing_date, expiry_date,
-                             purchase_price, selling_price, quantity, initial_quantity, created_by)
-                        VALUES (?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 2 YEAR),
-                                ?, ?, ?, ?, ?)
-                    ")->execute([
-                        $medicineId, $batchNum,
-                        $m['purchase_price'] ?? 0, $m['selling_price'] ?? 0,
-                        $qty, $qty, $user['id'],
-                    ]);
+                if ($type === 'add' && $expiryDate !== '') {
+                    // User selected an expiry date: merge into a batch with that
+                    // expiry, or create a new one
+                    $existBatch = $db->prepare("
+                        SELECT id FROM medicine_batches
+                        WHERE medicine_id = ? AND expiry_date = ?
+                        ORDER BY id DESC LIMIT 1
+                    ");
+                    $existBatch->execute([$medicineId, $expiryDate]);
+                    $b = $existBatch->fetch();
+
+                    if ($b) {
+                        $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
+                           ->execute([$qty, $b['id']]);
+                    } else {
+                        $med = $db->prepare("SELECT purchase_price, selling_price, public_price FROM medicines WHERE id = ?");
+                        $med->execute([$medicineId]);
+                        $m = $med->fetch();
+                        $batchNum = 'ADJ-' . date('Ymd-His') . '-' . $medicineId;
+                        $db->prepare("
+                            INSERT INTO medicine_batches
+                                (medicine_id, batch_number, manufacturing_date, expiry_date,
+                                 purchase_price, selling_price, public_price, quantity, initial_quantity, created_by)
+                            VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?)
+                        ")->execute([
+                            $medicineId, $batchNum, $expiryDate,
+                            $m['purchase_price'] ?? 0, $m['selling_price'] ?? 0, $m['public_price'] ?? 0,
+                            $qty, $qty, $user['id'],
+                        ]);
+                    }
+                } else {
+                    // Apply to most recent non-expired batch (include qty=0 so 'add' works on empty stock)
+                    $batch = $db->prepare("
+                        SELECT id, quantity FROM medicine_batches
+                        WHERE medicine_id = ? AND expiry_date >= CURDATE()
+                        ORDER BY quantity DESC, expiry_date DESC LIMIT 1
+                    ");
+                    $batch->execute([$medicineId]);
+                    $b = $batch->fetch();
+
+                    if ($b) {
+                        $newQty = max(0, (int)$b['quantity'] + $qtyChange);
+                        $db->prepare("UPDATE medicine_batches SET quantity = ? WHERE id = ?")->execute([$newQty, $b['id']]);
+                    } elseif ($type === 'add') {
+                        // No batch exists — create one automatically
+                        $med = $db->prepare("SELECT purchase_price, selling_price, public_price FROM medicines WHERE id = ?");
+                        $med->execute([$medicineId]);
+                        $m = $med->fetch();
+                        $batchNum = 'ADJ-' . date('Ymd-His') . '-' . $medicineId;
+                        $db->prepare("
+                            INSERT INTO medicine_batches
+                                (medicine_id, batch_number, manufacturing_date, expiry_date,
+                                 purchase_price, selling_price, public_price, quantity, initial_quantity, created_by)
+                            VALUES (?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 2 YEAR),
+                                    ?, ?, ?, ?, ?, ?)
+                        ")->execute([
+                            $medicineId, $batchNum,
+                            $m['purchase_price'] ?? 0, $m['selling_price'] ?? 0, $m['public_price'] ?? 0,
+                            $qty, $qty, $user['id'],
+                        ]);
+                    }
                 }
             }
 
