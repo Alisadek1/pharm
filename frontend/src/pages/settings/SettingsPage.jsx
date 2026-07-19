@@ -188,7 +188,7 @@ export default function SettingsPage() {
                 <input type="number" min="0" step="0.1" value={s.loyalty_rate || '1'} onChange={e => set('loyalty_rate', e.target.value)} className="input w-28" />
               </Field>
               <Field label={t('settings.loyalty_value')} help={t('settings.loyalty_value_help')}>
-                <input type="number" min="0" step="0.001" value={s.loyalty_point_value || '0.01'} onChange={e => set('loyalty_point_value', e.target.value)} className="input w-28" />
+                <input type="number" min="0" step="any" value={s.loyalty_point_value || '0.01'} onChange={e => set('loyalty_point_value', e.target.value)} className="input w-28" />
               </Field>
               <Field label={t('settings.near_expiry_days')} help={t('settings.near_expiry_days_help')}>
                 <input type="number" min="1" value={s.near_expiry_days || '30'} onChange={e => set('near_expiry_days', e.target.value)} className="input w-28" />
@@ -231,7 +231,7 @@ export default function SettingsPage() {
               {s.pricing_mode === 'fixed' ? (
                 <Field label={t('settings.fixed_markup')} help={t('settings.fixed_markup_help')}>
                   <div className="flex items-center gap-2">
-                    <input type="number" min="0" step="0.001" value={s.pricing_fixed_amount || '0'}
+                    <input type="number" min="0" step="any" value={s.pricing_fixed_amount || '0'}
                       onChange={e => set('pricing_fixed_amount', e.target.value)} className="input w-36" />
                     <span className="text-sm text-gray-500">SAR</span>
                   </div>

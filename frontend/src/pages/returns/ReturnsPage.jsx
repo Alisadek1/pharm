@@ -164,7 +164,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
               {[['cash_amount','Cash'],['visa_amount','Visa'],['wallet_amount','Wallet'],['bank_transfer_amount','Bank Transfer']].map(([k, lbl]) => (
                 <div key={k}>
                   <label className="label text-xs">{lbl}</label>
-                  <input type="number" step="0.001" min="0" value={mixedAmounts[k]} onChange={e => setMixedAmounts(a => ({ ...a, [k]: e.target.value }))} className="input text-sm" placeholder="0.000" />
+                  <input type="number" step="any" min="0" value={mixedAmounts[k]} onChange={e => setMixedAmounts(a => ({ ...a, [k]: e.target.value }))} className="input text-sm" placeholder="0.000" />
                 </div>
               ))}
               <div className="col-span-2 flex justify-between text-sm font-semibold pt-1 border-t border-gray-200 dark:border-gray-600">

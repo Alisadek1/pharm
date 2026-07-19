@@ -54,8 +54,8 @@ function BatchForm({ initial, medicines, suppliers, onSubmit, loading }) {
         <div><label className="label">{t('batches.col_expiry')} *</label><input type="date" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} className="input" required /></div>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <div><label className="label">{t('batches.col_pharmacist_price')} *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="0.001" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('batches.col_pharmacist_price')} *</label><input type="number" step="any" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="any" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
         <div><label className="label">{t('batches.col_quantity')} {initial ? '' : '*'}</label><input type="number" min="0" value={form.quantity} onChange={e => set('quantity', e.target.value)} className="input" required={!initial} /></div>
       </div>
       <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>

@@ -84,12 +84,12 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
               </div>
               <div>
                 {idx === 0 && <label className="label text-xs">{t('purchases.pharmacist_price')}</label>}
-                <input type="number" step="0.001" min="0" value={item.purchase_price} onChange={e => setItem(idx, 'purchase_price', e.target.value)} className="input text-xs" />
+                <input type="number" step="any" min="0" value={item.purchase_price} onChange={e => setItem(idx, 'purchase_price', e.target.value)} className="input text-xs" />
               </div>
               <div className="flex gap-1 items-end">
                 <div className="flex-1">
                   {idx === 0 && <label className="label text-xs">{t('purchases.public_price')}</label>}
-                  <input type="number" step="0.001" min="0" value={item.public_price} onChange={e => setItem(idx, 'public_price', e.target.value)} className="input text-xs" placeholder="0.000" />
+                  <input type="number" step="any" min="0" value={item.public_price} onChange={e => setItem(idx, 'public_price', e.target.value)} className="input text-xs" placeholder="0.000" />
                 </div>
                 {items.length > 1 && (
                   <button type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg mb-0.5">×</button>
@@ -133,7 +133,7 @@ function PurchaseForm({ suppliers, medicines, onSubmit, loading }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">{t('purchases.paid_amount')}</label><input type="number" step="0.001" min="0" value={form.paid_amount} onChange={e => set('paid_amount', e.target.value)} className="input" placeholder={total.toFixed(3)} /></div>
+        <div><label className="label">{t('purchases.paid_amount')}</label><input type="number" step="any" min="0" value={form.paid_amount} onChange={e => set('paid_amount', e.target.value)} className="input" placeholder={total.toFixed(3)} /></div>
         <div><label className="label">{t('common.notes')}</label><input value={form.notes} onChange={e => set('notes', e.target.value)} className="input" /></div>
       </div>
 

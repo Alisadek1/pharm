@@ -71,8 +71,8 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
         <div><label className="label">{t('medicines.unit')}</label><input value={form.unit} onChange={e => set('unit', e.target.value)} className="input" /></div>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <div><label className="label">{t('medicines.pharmacist_price')} *</label><input type="number" step="0.001" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="0.001" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.pharmacist_price')} *</label><input type="number" step="any" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="any" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
         <div><label className="label">{t('medicines.min_stock')}</label><input type="number" min="0" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)} className="input" /></div>
       </div>
       <div>

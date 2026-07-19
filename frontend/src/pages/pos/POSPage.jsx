@@ -481,17 +481,17 @@ export default function POSPage() {
           <div className="mt-3 space-y-2">
             {(payMethod === 'cash' || payMethod === 'split') && (
               <div><label className="label text-xs">{t('pos.cash_amount')}</label>
-                <input type="number" step="0.001" value={cashAmount} onChange={e => setCashAmount(e.target.value)} className="input" />
+                <input type="number" step="any" value={cashAmount} onChange={e => setCashAmount(e.target.value)} className="input" />
               </div>
             )}
             {(payMethod === 'visa' || payMethod === 'split') && (
               <div><label className="label text-xs">{t('pos.card_amount')}</label>
-                <input type="number" step="0.001" value={visaAmount} onChange={e => setVisaAmount(e.target.value)} className="input" />
+                <input type="number" step="any" value={visaAmount} onChange={e => setVisaAmount(e.target.value)} className="input" />
               </div>
             )}
             {(payMethod === 'wallet' || payMethod === 'split') && (
               <div><label className="label text-xs">{t('pos.wallet_amount')}</label>
-                <input type="number" step="0.001" value={walletAmount} onChange={e => setWalletAmount(e.target.value)} className="input" />
+                <input type="number" step="any" value={walletAmount} onChange={e => setWalletAmount(e.target.value)} className="input" />
               </div>
             )}
             {change > 0.001 && (
