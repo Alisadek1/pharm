@@ -5,7 +5,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { useApi } from '../../hooks/useApi'
-import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
+import { formatCurrency, formatDateTime, statusLabel, paymentMethodLabel } from '../../utils/format'
 import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton'
 import StatCard from '../../components/ui/StatCard'
 import { Link } from 'react-router-dom'
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v) => formatCurrency(v)} />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#salesGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="revenue" name={t('dashboard.series_revenue')} stroke="#3b82f6" fill="url(#salesGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             {charts.payment_methods?.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={charts.payment_methods} dataKey="count" nameKey="payment_method" cx="50%" cy="50%" outerRadius={70} label={({ payment_method, percent }) => `${payment_method} ${(percent * 100).toFixed(0)}%`}>
+                  <Pie data={charts.payment_methods.map(p => ({ ...p, method_label: paymentMethodLabel(p.payment_method) }))} dataKey="count" nameKey="method_label" cx="50%" cy="50%" outerRadius={70} label={({ method_label, percent }) => `${method_label} ${(percent * 100).toFixed(0)}%`}>
                     {charts.payment_methods.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip />
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                 <XAxis type="number" tick={{ fontSize: 11 }} />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={120} />
                 <Tooltip />
-                <Bar dataKey="total_qty" fill="#10b981" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="total_qty" name={t('dashboard.series_qty')} fill="#10b981" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v) => formatCurrency(v)} />
-                <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name={t('dashboard.series_revenue')} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

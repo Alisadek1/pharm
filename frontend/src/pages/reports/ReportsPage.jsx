@@ -5,7 +5,7 @@ import {
   UsersIcon, StarIcon,
 } from '@heroicons/react/24/outline'
 import { useApi } from '../../hooks/useApi'
-import { formatCurrency, formatDate } from '../../utils/format'
+import { formatCurrency, formatDate, statusLabel, paymentMethodLabel } from '../../utils/format'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -227,7 +227,7 @@ function BestSellingReport({ data }) {
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis dataKey="medicine_name" type="category" width={140} tick={{ fontSize: 11 }} />
               <Tooltip formatter={v => [v, 'Units Sold']} />
-              <Bar dataKey="total_sold" fill="#3b82f6" radius={[0,4,4,0]} />
+              <Bar dataKey="total_sold" name={L('Units Sold')} fill="#3b82f6" radius={[0,4,4,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -257,7 +257,7 @@ function SimpleTableReport({ data, columns }) {
           {summaryEntries.slice(0, 4).map(([k, v]) => {
             // Keys ending in a count noun are plain numbers; other numeric
             // summary values are money
-            const isCount = /(returns|suppliers|customers|items|batches|invoices|products|skus|transactions|visits|count)$/.test(k)
+            const isCount = /(returns|suppliers|customers|items|batches|invoices|products|skus|transactions|visits|count|orders|sold|sales)$/.test(k)
             const numeric = v !== null && v !== '' && !isNaN(parseFloat(v))
             return (
               <SummaryCard key={k} label={L(k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))} value={!isCount && numeric ? formatCurrency(v) : v} color="blue" />
@@ -286,7 +286,7 @@ function SalesVatReport({ data }) {
           { key: 'customer_name',  label: 'Customer' },
           { key: 'date',           label: 'Date',              render: v => formatDate(v) },
           { key: 'cashier_name',   label: 'Cashier' },
-          { key: 'payment_method', label: 'Payment',           render: v => <span className="badge badge-blue capitalize">{v || '—'}</span> },
+          { key: 'payment_method', label: 'Payment',           render: v => <span className="badge badge-blue">{v ? paymentMethodLabel(v) : '—'}</span> },
           { key: 'total_before_vat', label: 'Before VAT',      render: v => formatCurrency(v) },
           { key: 'vat_rate',       label: 'VAT %',             render: v => `${parseFloat(v || 0).toFixed(0)}%` },
           { key: 'vat_amount',     label: 'VAT Amount',        render: v => <span className="text-amber-600 font-semibold">{formatCurrency(v)}</span> },
@@ -328,7 +328,7 @@ const REPORT_COLUMNS = {
   returns: [
     { key: 'date', label: 'Date', render: v => formatDate(v) },
     { key: 'invoice_number', label: 'Invoice' },
-    { key: 'return_type', label: 'Type', render: v => <span className={`badge ${v === 'sale' ? 'badge-blue' : 'badge-purple'}`}>{v}</span> },
+    { key: 'return_type', label: 'Type', render: v => <span className={`badge ${v === 'sale' ? 'badge-blue' : 'badge-purple'}`}>{i18n.t(v === 'sale' ? 'returns.type_sale' : 'returns.type_purchase')}</span> },
     { key: 'total_amount', label: 'Amount', render: v => <span className="text-red-500 font-semibold">− {formatCurrency(v)}</span> },
     { key: 'reason', label: 'Reason' },
   ],
@@ -373,7 +373,7 @@ const REPORT_COLUMNS = {
     { key: 'supplier_name', label: 'Supplier' },
     { key: 'total', label: 'Total', render: v => formatCurrency(v) },
     { key: 'paid_amount', label: 'Paid', render: v => formatCurrency(v) },
-    { key: 'payment_status', label: 'Status', render: v => <span className={`badge ${v === 'paid' ? 'badge-green' : v === 'partial' ? 'badge-yellow' : 'badge-red'}`}>{v}</span> },
+    { key: 'payment_status', label: 'Status', render: v => <span className={`badge badge-${statusLabel(v).color}`}>{statusLabel(v).label}</span> },
   ],
 }
 

@@ -134,6 +134,8 @@
   },
   "dashboard": {
     "title": "لوحة التحكم",
+    "series_revenue": "الإيرادات",
+    "series_qty": "الوحدات المباعة",
     "today_revenue": "إيرادات اليوم",
     "today_profit": "أرباح اليوم",
     "today_purchases": "مشتريات اليوم",
@@ -668,7 +670,15 @@
       "Total Customers": "إجمالي العملاء",
       "Total Items": "إجمالي الأصناف",
       "Total Batches": "إجمالي الدفعات",
-      "Total Loss": "إجمالي الخسارة"
+      "Total Loss": "إجمالي الخسارة",
+      "Total Cash": "إجمالي النقد",
+      "Total Visa": "إجمالي الفيزا",
+      "Total Wallet": "إجمالي المحفظة",
+      "Total Change": "إجمالي الباقي",
+      "Total Orders": "إجمالي الطلبات",
+      "Total Paid": "إجمالي المدفوع",
+      "Low Stock": "مخزون منخفض",
+      "Out of Stock": "نفد المخزون"
     }
   },
   "users": {

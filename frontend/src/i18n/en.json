@@ -134,6 +134,8 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "series_revenue": "Revenue",
+    "series_qty": "Units Sold",
     "today_revenue": "Today's Revenue",
     "today_profit": "Today's Profit",
     "today_purchases": "Today's Purchases",
