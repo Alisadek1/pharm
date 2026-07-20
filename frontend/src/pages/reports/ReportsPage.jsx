@@ -55,15 +55,15 @@ const COLOR_MAP = {
 function SummaryCard({ label, value, sub, color = 'blue' }) {
   return (
     <div className={`rounded-xl border p-4 ${COLOR_MAP[color] || COLOR_MAP.blue}`}>
-      <p className="text-xs font-medium uppercase tracking-wide opacity-70">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide opacity-70">{L(label)}</p>
       <p className="text-2xl font-bold mt-1">{value}</p>
       {sub && <p className="text-xs mt-1 opacity-60">{sub}</p>}
     </div>
   )
 }
 
-function ReportTable({ columns, rows, emptyMsg = 'No data' }) {
-  if (!rows.length) return <p className="text-center text-gray-400 py-8">{emptyMsg}</p>
+function ReportTable({ columns, rows, emptyMsg }) {
+  if (!rows.length) return <p className="text-center text-gray-400 py-8">{emptyMsg || i18n.t('common.no_data')}</p>
   return (
     <div className="table-container">
       <table className="table">
@@ -105,7 +105,7 @@ function SalesDailyReport({ data }) {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatCurrency(v, true)} />
               <Tooltip formatter={v => formatCurrency(v)} />
-              <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#rev)" strokeWidth={2} />
+              <Area type="monotone" dataKey="revenue" name={L('Revenue')} stroke="#3b82f6" fill="url(#rev)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -144,8 +144,8 @@ function SalesMonthlyReport({ data }) {
               <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatCurrency(v, true)} />
               <Tooltip formatter={v => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4,4,0,0]} />
-              <Bar dataKey="profit" name="Profit" fill="#10b981" radius={[4,4,0,0]} />
+              <Bar dataKey="revenue" name={L('Revenue')} fill="#3b82f6" radius={[4,4,0,0]} />
+              <Bar dataKey="profit" name={L('Profit')} fill="#10b981" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -255,7 +255,7 @@ function SimpleTableReport({ data, columns }) {
       {summaryEntries.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {summaryEntries.slice(0, 4).map(([k, v]) => (
-            <SummaryCard key={k} label={k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} value={typeof v === 'number' && k.includes('amount') || k.includes('total') || k.includes('revenue') ? formatCurrency(v) : v} color="blue" />
+            <SummaryCard key={k} label={L(k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))} value={typeof v === 'number' && k.includes('amount') || k.includes('total') || k.includes('revenue') ? formatCurrency(v) : v} color="blue" />
           ))}
         </div>
       )}

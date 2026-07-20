@@ -6,7 +6,7 @@ import Pagination from '../../components/ui/Pagination'
 import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
+import { formatCurrency, formatDateTime, statusLabel, paymentMethodLabel } from '../../utils/format'
 import { useTranslation } from 'react-i18next'
 
 export default function SalesPage() {
@@ -96,7 +96,7 @@ export default function SalesPage() {
                       <td className="text-center">{row.items_count}</td>
                       <td className="font-semibold">{formatCurrency(row.total)}</td>
                       <td>
-                        <span className="badge badge-blue capitalize">{row.payment_method}</span>
+                        <span className="badge badge-blue">{paymentMethodLabel(row.payment_method)}</span>
                       </td>
                       <td><span className={`badge badge-${s.color}`}>{s.label}</span></td>
                       <td>
