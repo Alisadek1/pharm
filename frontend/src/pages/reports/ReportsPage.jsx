@@ -254,9 +254,15 @@ function SimpleTableReport({ data, columns }) {
     <div className="space-y-5">
       {summaryEntries.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {summaryEntries.slice(0, 4).map(([k, v]) => (
-            <SummaryCard key={k} label={L(k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))} value={typeof v === 'number' && k.includes('amount') || k.includes('total') || k.includes('revenue') ? formatCurrency(v) : v} color="blue" />
-          ))}
+          {summaryEntries.slice(0, 4).map(([k, v]) => {
+            // Keys ending in a count noun are plain numbers; other numeric
+            // summary values are money
+            const isCount = /(returns|suppliers|customers|items|batches|invoices|products|skus|transactions|visits|count)$/.test(k)
+            const numeric = v !== null && v !== '' && !isNaN(parseFloat(v))
+            return (
+              <SummaryCard key={k} label={L(k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))} value={!isCount && numeric ? formatCurrency(v) : v} color="blue" />
+            )
+          })}
         </div>
       )}
       <ReportTable columns={columns} rows={rows} />
@@ -429,7 +435,7 @@ export default function ReportsPage() {
         {activeType && (
           <div className="flex items-center gap-2 flex-wrap">
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="input text-sm" />
-            <span className="text-gray-400">to</span>
+            <span className="text-gray-400">{t('reports.date_to')}</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="input text-sm" />
             <button onClick={() => runReport()} className="btn-primary btn-sm">{t('reports.run')}</button>
             <button onClick={handleExport} disabled={exporting || !reportData} className="btn-secondary btn-sm">

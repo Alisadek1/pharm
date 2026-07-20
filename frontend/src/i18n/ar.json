@@ -659,7 +659,16 @@
       "Total Products": "إجمالي المنتجات",
       "Total Stock Units": "إجمالي وحدات المخزون",
       "Total Inv Value": "إجمالي قيمة المخزون",
-      "Returns": "المرتجعات"
+      "Returns": "المرتجعات",
+      "Total Returns": "إجمالي المرتجعات",
+      "Total Amount": "إجمالي المبلغ",
+      "Total Suppliers": "إجمالي الموردين",
+      "Total Purchases": "إجمالي المشتريات",
+      "Total Due": "إجمالي المستحق",
+      "Total Customers": "إجمالي العملاء",
+      "Total Items": "إجمالي الأصناف",
+      "Total Batches": "إجمالي الدفعات",
+      "Total Loss": "إجمالي الخسارة"
     }
   },
   "users": {
