@@ -777,6 +777,7 @@
     "mark_read": "Mark read",
     "marked_all_read": "All notifications marked as read",
     "all_caught_up": "You're all caught up!",
+    "summary": "{{total}} total · {{unread}} unread on this page",
     "types": {
       "low_stock": "Low Stock",
       "expired": "Expired",

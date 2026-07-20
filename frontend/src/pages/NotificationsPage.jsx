@@ -10,6 +10,51 @@ import { formatDateTime } from '../utils/format'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import { useTranslation } from 'react-i18next'
+import i18n from '../i18n/index.js'
+
+// The backend stores notification titles/messages in English using a fixed
+// set of templates. In Arabic mode we translate them by pattern; anything
+// unrecognized falls back to the stored text.
+const AR_TITLES = {
+  'Low Stock Alert': 'تنبيه مخزون منخفض',
+  'Near Expiry Warning': 'تحذير قرب انتهاء الصلاحية',
+  'Expired Batch': 'دفعة منتهية الصلاحية',
+  'New Purchase Received': 'استلام مشتريات جديدة',
+  'Daily Target Reached': 'تم بلوغ الهدف اليومي',
+  'System Backup Completed': 'اكتمل النسخ الاحتياطي',
+}
+
+const AR_MESSAGES = {
+  'Sales for today exceeded the daily target — great performance!': 'تجاوزت مبيعات اليوم الهدف اليومي — أداء رائع!',
+  'Automatic database backup completed successfully': 'اكتمل النسخ الاحتياطي التلقائي لقاعدة البيانات بنجاح',
+}
+
+const AR_MSG_PATTERNS = [
+  [/^(.+) is running low\. Current stock: (\d+), Minimum: (\d+)$/, (m) => `${m[1]} على وشك النفاد. المخزون الحالي: ${m[2]}، الحد الأدنى: ${m[3]}`],
+  [/^(.+) is running low — only (\d+) units remaining$/, (m) => `${m[1]} على وشك النفاد — تبقى ${m[2]} وحدات فقط`],
+  [/^(.+) has (\d+) units — reorder immediately$/, (m) => `${m[1]} لديه ${m[2]} وحدات — أعد الطلب فوراً`],
+  [/^(.+) has only (\d+) units remaining$/, (m) => `لم يتبقَّ من ${m[1]} سوى ${m[2]} وحدات`],
+  [/^(.+) batch (\S+) expires on (\S+) \((\d+) days left\)$/, (m) => `دفعة ${m[2]} من ${m[1]} تنتهي في ${m[3]} (متبقٍ ${m[4]} يوماً)`],
+  [/^(.+) batch (\S+) expired on (\S+) — quarantine now$/, (m) => `دفعة ${m[2]} من ${m[1]} انتهت صلاحيتها في ${m[3]} — اعزلها الآن`],
+  [/^Purchase order (\S+) received from (.+)$/, (m) => `تم استلام أمر الشراء ${m[1]} من ${m[2]}`],
+]
+
+const trTitle = (title) => {
+  if (i18n.language !== 'ar' || !title) return title
+  if (AR_TITLES[title]) return AR_TITLES[title]
+  if (title.startsWith('Low Stock: ')) return 'مخزون منخفض: ' + title.slice('Low Stock: '.length)
+  return title
+}
+
+const trMessage = (msg) => {
+  if (i18n.language !== 'ar' || !msg) return msg
+  if (AR_MESSAGES[msg]) return AR_MESSAGES[msg]
+  for (const [re, fn] of AR_MSG_PATTERNS) {
+    const m = msg.match(re)
+    if (m) return fn(m)
+  }
+  return msg
+}
 
 const TYPE_META = {
   low_stock:   { icon: ExclamationTriangleIcon, color: 'amber',  labelKey: 'notifications.types.low_stock' },
@@ -83,7 +128,7 @@ export default function NotificationsPage() {
             <BellIcon className="w-7 h-7" />
             {t('notifications.title')}
           </h1>
-          <p className="text-sm text-gray-500">{pg.total} total · {unreadCount} unread on this page</p>
+          <p className="text-sm text-gray-500">{t('notifications.summary', { total: pg.total, unread: unreadCount })}</p>
         </div>
         {unreadCount > 0 && (
           <button onClick={markAllRead} disabled={markingAll} className="btn-secondary btn-sm">
@@ -148,7 +193,7 @@ export default function NotificationsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className={`text-sm ${!notif.is_read ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                      {notif.title}
+                      {trTitle(notif.title)}
                     </p>
                     <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       {!notif.is_read && (
@@ -161,7 +206,7 @@ export default function NotificationsPage() {
                       </button>
                     </div>
                   </div>
-                  {notif.message && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notif.message}</p>}
+                  {notif.message && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{trMessage(notif.message)}</p>}
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${!notif.is_read ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
                     <span className="text-[11px] text-gray-400">{formatDateTime(notif.created_at)}</span>
