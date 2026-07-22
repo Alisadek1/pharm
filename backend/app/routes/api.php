@@ -9,6 +9,38 @@ $router->get('/api/health', function (array $p): void {
     Response::json(['status' => 'ok', 'time' => date('c')]);
 });
 
+// ONE-TIME migration — remove after running
+$router->get('/api/migrate-v2', function (array $p): void {
+    $db = Database::getInstance();
+    $steps = [
+        "CREATE TABLE IF NOT EXISTS supplier_payments (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            supplier_id INT NOT NULL,
+            user_id INT NOT NULL,
+            amount DECIMAL(10,3) NOT NULL,
+            payment_date DATE NOT NULL,
+            payment_method VARCHAR(50) DEFAULT 'cash',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_supplier (supplier_id),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+        "ALTER TABLE purchase_items
+            ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER public_price,
+            ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,3) NOT NULL DEFAULT 0 AFTER tax_rate,
+            ADD COLUMN IF NOT EXISTS remaining_quantity INT NOT NULL DEFAULT 0 AFTER tax_amount",
+        "UPDATE purchase_items SET remaining_quantity = quantity WHERE remaining_quantity = 0",
+        "ALTER TABLE return_items ADD COLUMN IF NOT EXISTS purchase_item_id INT NULL AFTER batch_id",
+    ];
+    $results = [];
+    foreach ($steps as $i => $sql) {
+        try { $db->exec($sql); $results[] = ['step' => $i + 1, 'status' => 'OK']; }
+        catch (\Exception $e) { $results[] = ['step' => $i + 1, 'status' => 'ERROR', 'msg' => $e->getMessage()]; }
+    }
+    Response::json(['ok' => true, 'results' => $results]);
+});
+
 // Auth routes
 $router->group('/api/auth', function (Router $r) {
     $r->post('/login',          [AuthController::class, 'login']);
