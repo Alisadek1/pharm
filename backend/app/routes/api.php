@@ -44,13 +44,16 @@ $router->group('/api/companies', function (Router $r) {
 
 // Suppliers
 $router->group('/api/suppliers', function (Router $r) {
-    $r->get('/',                    [SupplierController::class, 'index']);
-    $r->post('/',                   [SupplierController::class, 'store']);
-    $r->get('/export',              [SupplierController::class, 'export']);
-    $r->get('/{id}',                [SupplierController::class, 'show']);
-    $r->put('/{id}',                [SupplierController::class, 'update']);
-    $r->delete('/{id}',             [SupplierController::class, 'destroy']);
-    $r->get('/{id}/purchases',      [SupplierController::class, 'purchases']);
+    $r->get('/',                            [SupplierController::class, 'index']);
+    $r->post('/',                           [SupplierController::class, 'store']);
+    $r->get('/export',                      [SupplierController::class, 'export']);
+    $r->get('/{id}',                        [SupplierController::class, 'show']);
+    $r->put('/{id}',                        [SupplierController::class, 'update']);
+    $r->delete('/{id}',                     [SupplierController::class, 'destroy']);
+    $r->get('/{id}/purchases',              [SupplierController::class, 'purchases']);
+    $r->get('/{supplier_id}/payments',      [SupplierPaymentController::class, 'index']);
+    $r->post('/{supplier_id}/payments',     [SupplierPaymentController::class, 'store']);
+    $r->delete('/{supplier_id}/payments/{id}', [SupplierPaymentController::class, 'destroy']);
 });
 
 // Customers
@@ -77,7 +80,8 @@ $router->group('/api/medicines', function (Router $r) {
     $r->get('/{id}',            [MedicineController::class, 'show']);
     $r->post('/{id}',           [MedicineController::class, 'update']);
     $r->delete('/{id}',         [MedicineController::class, 'destroy']);
-    $r->get('/{id}/batches',    [MedicineController::class, 'batches']);
+    $r->get('/{id}/batches',        [MedicineController::class, 'batches']);
+    $r->get('/{id}/purchase-lines', [MedicineController::class, 'purchaseLines']);
 });
 
 // Batches

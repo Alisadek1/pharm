@@ -113,26 +113,51 @@ class ReturnController
             $returnId = (int)$db->lastInsertId();
 
             foreach ($items as $item) {
-                $medicineId = (int)($item['medicine_id'] ?? 0);
-                $qty        = (int)($item['quantity'] ?? 0);
-                $unitPrice  = (float)($item['unit_price'] ?? 0);
-                $batchId    = !empty($item['batch_id']) ? (int)$item['batch_id'] : null;
+                $medicineId     = (int)($item['medicine_id'] ?? 0);
+                $qty            = (int)($item['quantity'] ?? 0);
+                $unitPrice      = (float)($item['unit_price'] ?? 0);
+                $batchId        = !empty($item['batch_id']) ? (int)$item['batch_id'] : null;
+                $purchItemId    = !empty($item['purchase_item_id']) ? (int)$item['purchase_item_id'] : null;
 
                 if ($medicineId <= 0 || $qty <= 0) continue;
 
                 $subtotal    = round($qty * $unitPrice, 3);
                 $totalAmount += $subtotal;
 
-                // Restore stock
-                if ($batchId) {
-                    $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                       ->execute([$qty, $batchId]);
+                if ($type === 'sale') {
+                    // Sale return: customer returns goods to pharmacy — stock increases
+                    if ($batchId) {
+                        $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
+                           ->execute([$qty, $batchId]);
+                    }
+                } else {
+                    // Purchase return: pharmacy returns goods to supplier — stock decreases
+                    // Deduct from the earliest non-empty batch (FIFO)
+                    $batchStmt = $db->prepare("
+                        SELECT id, quantity FROM medicine_batches
+                        WHERE medicine_id = ? AND quantity > 0
+                        ORDER BY expiry_date ASC, id ASC
+                        LIMIT 1
+                    ");
+                    $batchStmt->execute([$medicineId]);
+                    $batchRow = $batchStmt->fetch();
+                    if ($batchRow) {
+                        $deduct = min($qty, (int)$batchRow['quantity']);
+                        $db->prepare("UPDATE medicine_batches SET quantity = quantity - ? WHERE id = ?")
+                           ->execute([$deduct, $batchRow['id']]);
+                        $batchId = $batchRow['id'];
+                    }
+                    // Reduce remaining_quantity on the purchase item
+                    if ($purchItemId) {
+                        $db->prepare("UPDATE purchase_items SET remaining_quantity = GREATEST(0, remaining_quantity - ?) WHERE id = ?")
+                           ->execute([$qty, $purchItemId]);
+                    }
                 }
 
                 $db->prepare("
-                    INSERT INTO return_items (return_id, medicine_id, batch_id, quantity, unit_price, subtotal)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ")->execute([$returnId, $medicineId, $batchId, $qty, $unitPrice, $subtotal]);
+                    INSERT INTO return_items (return_id, medicine_id, batch_id, purchase_item_id, quantity, unit_price, subtotal)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ")->execute([$returnId, $medicineId, $batchId, $purchItemId, $qty, $unitPrice, $subtotal]);
             }
 
             $db->prepare("UPDATE returns SET total_amount = ? WHERE id = ?")->execute([round($totalAmount, 3), $returnId]);

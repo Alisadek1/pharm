@@ -21,8 +21,9 @@ class MedicineController
         $binds = [];
 
         if ($search !== '') {
-            $where[] = 'MATCH(m.name, m.name_ar, m.scientific_name, m.barcode, m.sku) AGAINST(? IN BOOLEAN MODE)';
-            $binds[] = $search . '*';
+            $where[] = '(m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ? OR m.sku LIKE ?)';
+            $q = "%{$search}%";
+            $binds = array_merge($binds, [$q, $q, $q, $q]);
         }
 
         if ($catId > 0) {
@@ -114,10 +115,10 @@ class MedicineController
 
         $stmt = $db->prepare("
             INSERT INTO medicines (
-                category_id, company_id, name, name_ar, scientific_name, barcode, sku,
+                category_id, company_id, name, name_ar, barcode, sku,
                 dosage_form, strength, unit, purchase_price, selling_price, public_price, minimum_stock,
                 prescription_required, controlled_drug, image, description, is_active, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -125,7 +126,6 @@ class MedicineController
             !empty($body['company_id'])  ? (int)$body['company_id']  : null,
             trim($body['name']),
             trim($body['name_ar'] ?? ''),
-            trim($body['scientific_name'] ?? ''),
             !empty($body['barcode']) ? trim($body['barcode']) : null,
             $sku,
             trim($body['dosage_form'] ?? ''),
@@ -213,7 +213,7 @@ class MedicineController
 
         $db->prepare("
             UPDATE medicines SET
-                category_id=?, company_id=?, name=?, name_ar=?, scientific_name=?, barcode=?,
+                category_id=?, company_id=?, name=?, name_ar=?, barcode=?,
                 dosage_form=?, strength=?, unit=?, purchase_price=?, selling_price=?, public_price=?,
                 minimum_stock=?, prescription_required=?, controlled_drug=?,
                 image=?, description=?, is_active=?
@@ -223,7 +223,6 @@ class MedicineController
             !empty($body['company_id'])  ? (int)$body['company_id']  : null,
             trim($body['name']),
             trim($body['name_ar'] ?? $existing['name_ar']),
-            trim($body['scientific_name'] ?? $existing['scientific_name']),
             !empty($body['barcode']) ? trim($body['barcode']) : $existing['barcode'],
             trim($body['dosage_form'] ?? $existing['dosage_form']),
             trim($body['strength'] ?? $existing['strength']),
@@ -307,7 +306,7 @@ class MedicineController
 
         $db   = Database::getInstance();
         $stmt = $db->prepare("
-            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.public_price, m.unit,
+            SELECT m.id, m.name, m.name_ar, m.barcode, m.sku, m.selling_price, m.public_price, m.purchase_price, m.unit,
                    m.prescription_required, m.controlled_drug,
                    c.name as category_name,
                    COALESCE((
@@ -317,7 +316,7 @@ class MedicineController
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             WHERE m.is_active = 1
-              AND (m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ? OR m.scientific_name LIKE ?)
+              AND (m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ? OR m.sku LIKE ?)
             ORDER BY m.name ASC
             LIMIT 20
         ");
@@ -475,7 +474,7 @@ class MedicineController
 
         $db   = Database::getInstance();
         $stmt = $db->query("
-            SELECT m.name, m.name_ar, m.scientific_name, m.barcode, m.sku,
+            SELECT m.name, m.name_ar, m.barcode, m.sku,
                    c.name as category, co.name as company,
                    m.purchase_price, m.public_price, m.minimum_stock,
                    m.dosage_form, m.strength, m.unit, m.prescription_required, m.controlled_drug,
@@ -492,7 +491,7 @@ class MedicineController
         header('Content-Disposition: attachment; filename="medicines-' . date('Y-m-d') . '.csv"');
 
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['Name', 'Arabic Name', 'Scientific Name', 'Barcode', 'SKU', 'Category', 'Company',
+        fputcsv($out, ['Name', 'Arabic Name', 'Barcode', 'SKU', 'Category', 'Company',
                         'Purchase Price', 'Public Price', 'Min Stock', 'Dosage Form', 'Strength', 'Unit',
                         'Prescription Required', 'Controlled Drug', 'Current Stock']);
 
@@ -502,6 +501,29 @@ class MedicineController
 
         fclose($out);
         exit;
+    }
+
+    public function purchaseLines(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+
+        $id  = (int)$params['id'];
+        $db  = Database::getInstance();
+
+        $stmt = $db->prepare("
+            SELECT pi.id, pi.purchase_id, pi.quantity, pi.remaining_quantity,
+                   pi.purchase_price, pi.expiry_date,
+                   p.invoice_number, p.purchase_date,
+                   s.name as supplier_name
+            FROM purchase_items pi
+            JOIN purchases p ON p.id = pi.purchase_id
+            LEFT JOIN suppliers s ON s.id = p.supplier_id
+            WHERE pi.medicine_id = ? AND pi.remaining_quantity > 0
+            ORDER BY pi.expiry_date ASC, pi.id ASC
+        ");
+        $stmt->execute([$id]);
+
+        Response::success($stmt->fetchAll());
     }
 
     private function getById(PDO $db, int $id): ?array

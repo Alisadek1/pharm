@@ -49,7 +49,8 @@ class SupplierController
 
         $body = $_POST;
         $validator = Validator::make($body, [
-            'name' => 'required|string|maxlength:150',
+            'name'         => 'required|string|maxlength:150',
+            'company_name' => 'required|string|maxlength:200',
         ]);
 
         if ($validator->fails()) {
@@ -118,7 +119,8 @@ class SupplierController
         }
 
         $validator = Validator::make($body, [
-            'name' => 'required|string|maxlength:150',
+            'name'         => 'required|string|maxlength:150',
+            'company_name' => 'required|string|maxlength:200',
         ]);
 
         if ($validator->fails()) {

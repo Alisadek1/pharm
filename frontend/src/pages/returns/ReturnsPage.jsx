@@ -40,7 +40,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       const sale = res.data
       setInvoiceNum(sale.invoice_number || '')
       setSource(sale)
-      setSelectedItems((sale.items || []).map(it => ({ ...it, return_qty: 0 })))
+      setSelectedItems((sale.items || []).map(it => ({ ...it, return_qty: 0, max_qty: parseInt(it.quantity) || 0, purchase_item_id: null })))
     }).catch(() => toast.error(t('returns.load_failed'))).finally(() => setSearching(false))
   }, [initialSaleId])
   const [reason, setReason] = useState('')
@@ -55,16 +55,25 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       const endpoint = returnType === 'sale' ? `/api/sales/invoice/${encodeURIComponent(invoiceNum)}` : `/api/purchases/invoice/${encodeURIComponent(invoiceNum)}`
       const res = await get(endpoint)
       setSource(res.data)
-      setSelectedItems((res.data.items || []).map(it => ({ ...it, return_qty: 0 })))
+      setSelectedItems((res.data.items || []).map(it => ({
+        ...it,
+        return_qty: 0,
+        // For purchase items, max returnable = remaining_quantity; for sale items = quantity
+        max_qty: returnType === 'purchase' ? (parseInt(it.remaining_quantity) || 0) : (parseInt(it.quantity) || 0),
+        // unit_price for purchase items is purchase_price
+        unit_price: it.unit_price ?? it.purchase_price ?? 0,
+        // purchase_item_id for tracking FIFO deduction
+        purchase_item_id: returnType === 'purchase' ? it.id : null,
+      })))
     } catch { toast.error(t('returns.invoice_not_found')) }
     finally { setSearching(false) }
   }
 
   const setQty = (idx, qty) => {
-    setSelectedItems(prev => prev.map((it, i) => i === idx ? { ...it, return_qty: Math.min(Math.max(0, parseInt(qty) || 0), it.quantity) } : it))
+    setSelectedItems(prev => prev.map((it, i) => i === idx ? { ...it, return_qty: Math.min(Math.max(0, parseInt(qty) || 0), it.max_qty) } : it))
   }
 
-  const totalRefund = selectedItems.reduce((sum, it) => sum + (it.return_qty * (it.unit_price || 0)), 0)
+  const totalRefund = selectedItems.reduce((sum, it) => sum + (it.return_qty * (parseFloat(it.unit_price) || 0)), 0)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -75,7 +84,14 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
     const payload = {
       return_type: returnType,
       reference_id: source.id,
-      items: JSON.stringify(items.map(it => ({ item_id: it.id, medicine_id: it.medicine_id, batch_id: it.batch_id, quantity: it.return_qty, unit_price: it.unit_price }))),
+      items: JSON.stringify(items.map(it => ({
+        item_id: it.id,
+        medicine_id: it.medicine_id,
+        batch_id: it.batch_id,
+        purchase_item_id: it.purchase_item_id || null,
+        quantity: it.return_qty,
+        unit_price: it.unit_price,
+      }))),
       reason,
       notes,
       payment_method: paymentMethod,
@@ -138,11 +154,11 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
               <div key={idx} className="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.medicine_name}</p>
-                  <p className="text-xs text-gray-400">{t('returns.max_qty')}: {item.quantity} · {formatCurrency(item.unit_price)}</p>
+                  <p className="text-xs text-gray-400">{t('returns.max_qty')}: {item.max_qty ?? item.quantity} · {formatCurrency(item.unit_price)}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-gray-400">{t('returns.return_qty')}:</span>
-                  <input type="number" min="0" max={item.quantity} value={item.return_qty}
+                  <input type="number" min="0" max={item.max_qty ?? item.quantity} value={item.return_qty}
                     onChange={e => setQty(idx, e.target.value)}
                     className="w-16 text-center input py-1 text-sm" />
                 </div>

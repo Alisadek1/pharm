@@ -261,7 +261,13 @@
     "deactivate_confirm": "Deactivate \"{{name}}\"?",
     "deactivate_btn": "Deactivate",
     "rx": "Rx",
-    "controlled_short": "CD"
+    "controlled_short": "CD",
+    "price_mode": "Price Calculation Mode",
+    "fixed_price": "Fixed",
+    "percentage_price": "% of Public",
+    "price_pct": "% of Public Price",
+    "calculated": "auto-calculated",
+    "price_pct_hint": "{{pub}} × {{pct}}% = {{result}}"
   },
   "categories": {
     "title": "Categories",
@@ -325,7 +331,17 @@
     "delete_title": "Delete Supplier",
     "delete_confirm": "Delete \"{{name}}\"?",
     "save_failed": "Save failed",
-    "required_name": "Supplier name is required"
+    "required_name": "Supplier name is required",
+    "company_required": "Company name is required",
+    "payments_history": "Payment History",
+    "add_payment": "Add Payment",
+    "payment_amount": "Amount",
+    "payment_amount_required": "Payment amount is required",
+    "payment_date": "Payment Date",
+    "payment_method": "Payment Method",
+    "payment_added": "Payment recorded",
+    "payment_deleted": "Payment deleted",
+    "no_payments": "No payments recorded"
   },
   "purchases": {
     "title": "Purchases",
@@ -361,7 +377,19 @@
     "required_expiry": "Expiry date is required for every item",
     "required_items": "Add at least one item",
     "col_payment": "Payment",
-    "due": "Due"
+    "due": "Due",
+    "item_tax": "Tax (%)",
+    "item_tax_amount": "Tax Amount",
+    "items_tax_total": "item taxes",
+    "search_placeholder": "Name or barcode…",
+    "add_new_medicine": "Add New Medicine",
+    "quick_add_medicine": "Quick Add Medicine",
+    "expiry_hint": "MM/YYYY or DD/MM/YYYY",
+    "barcode_hint": "Scan → Enter",
+    "batch_hint": "Optional",
+    "no_medicine_found": "No medicine found",
+    "delete_title": "Delete Purchase",
+    "delete_confirm": "Delete purchase \"{{ref}}\"?"
   },
   "batches": {
     "title": "Batches",
@@ -465,7 +493,9 @@
     "delete_confirm": "Delete \"{{name}}\"?",
     "save_failed": "Save failed",
     "required_name": "Customer name is required",
-    "points_earned": "Points Earned"
+    "points_earned": "Points Earned",
+    "whatsapp": "WhatsApp",
+    "whatsapp_no_phone": "No phone number for this customer"
   },
   "sales": {
     "title": "Sales",
@@ -513,7 +543,9 @@
     "col_discount": "Discount",
     "col_subtotal": "Subtotal",
     "refund": "Refund",
-    "print": "Print Invoice"
+    "print": "Print Invoice",
+    "whatsapp": "WhatsApp",
+    "whatsapp_msg": "WhatsApp Invoice"
   },
   "returns": {
     "title": "Returns",

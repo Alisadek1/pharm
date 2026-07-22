@@ -105,10 +105,16 @@ class PurchaseController
         // Generate invoice number
         $invoiceNum = $this->generateInvoiceNumber($db);
 
-        // Calculate totals
-        $subtotal = 0;
+        // Calculate totals — tax is now per item, not invoice-level
+        $subtotal    = 0;
+        $itemTaxTotal = 0;
         foreach ($items as $item) {
-            $subtotal += (float)($item['purchase_price'] ?? 0) * (int)($item['quantity'] ?? 0);
+            $itemQty   = (int)($item['quantity'] ?? 0);
+            $itemPrice = (float)($item['purchase_price'] ?? 0);
+            $itemSub   = $itemQty * $itemPrice;
+            $itemTax   = round($itemSub * (float)($item['tax_rate'] ?? 0) / 100, 3);
+            $subtotal    += $itemSub;
+            $itemTaxTotal += $itemTax;
         }
 
         $discountType   = $body['discount_type'] ?? 'fixed';
@@ -117,10 +123,8 @@ class PurchaseController
             ? round($subtotal * $discountValue / 100, 3)
             : $discountValue;
 
-        $taxRate   = (float)($body['tax_rate'] ?? 0);
-        $afterDisc = $subtotal - $discountAmount;
-        $taxAmount = round($afterDisc * $taxRate / 100, 3);
-        $total     = $afterDisc + $taxAmount;
+        $taxAmount = round($itemTaxTotal, 3);
+        $total     = $subtotal - $discountAmount + $taxAmount;
         $paid      = (float)($body['paid_amount'] ?? $total);
         $due       = max(0, $total - $paid);
 
@@ -140,7 +144,7 @@ class PurchaseController
                 $discountType,
                 $discountValue,
                 $discountAmount,
-                $taxRate,
+                0,
                 $taxAmount,
                 round($total, 3),
                 round($paid, 3),
@@ -163,6 +167,8 @@ class PurchaseController
                 $purchPrice  = (float)($item['purchase_price'] ?? 0);
                 $publicPrice = (float)($item['public_price'] ?? 0);
                 $sellPrice   = $publicPrice;
+                $itemTaxRate = (float)($item['tax_rate'] ?? 0);
+                $itemTaxAmt  = round($qty * $purchPrice * $itemTaxRate / 100, 3);
                 $expiryDate  = !empty($item['expiry_date']) ? $item['expiry_date'] : null;
                 $mfgDate     = !empty($item['manufacturing_date']) ? $item['manufacturing_date'] : null;
 
@@ -222,8 +228,9 @@ class PurchaseController
 
                 $db->prepare("
                     INSERT INTO purchase_items (purchase_id, medicine_id, batch_id, batch_number,
-                        expiry_date, quantity, purchase_price, selling_price, public_price, subtotal)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        expiry_date, quantity, purchase_price, selling_price, public_price,
+                        tax_rate, tax_amount, remaining_quantity, subtotal)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ")->execute([
                     $purchaseId,
                     $medicineId,
@@ -234,6 +241,9 @@ class PurchaseController
                     $purchPrice,
                     $sellPrice,
                     $publicPrice,
+                    $itemTaxRate,
+                    $itemTaxAmt,
+                    $qty,
                     round($qty * $purchPrice, 3),
                 ]);
             }

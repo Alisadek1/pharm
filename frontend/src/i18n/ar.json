@@ -261,7 +261,13 @@
     "deactivate_confirm": "تعطيل \"{{name}}\"؟",
     "deactivate_btn": "تعطيل",
     "rx": "Rx",
-    "controlled_short": "مضبوط"
+    "controlled_short": "مضبوط",
+    "price_mode": "طريقة احتساب السعر",
+    "fixed_price": "ثابت",
+    "percentage_price": "% من سعر الجمهور",
+    "price_pct": "نسبة من سعر الجمهور",
+    "calculated": "محسوب تلقائياً",
+    "price_pct_hint": "{{pub}} × {{pct}}% = {{result}}"
   },
   "categories": {
     "title": "الفئات",
@@ -325,7 +331,17 @@
     "delete_title": "حذف المورد",
     "delete_confirm": "حذف \"{{name}}\"؟",
     "save_failed": "فشل الحفظ",
-    "required_name": "اسم المورد مطلوب"
+    "required_name": "اسم المورد مطلوب",
+    "company_required": "اسم الشركة مطلوب",
+    "payments_history": "سجل المدفوعات",
+    "add_payment": "إضافة دفعة",
+    "payment_amount": "المبلغ",
+    "payment_amount_required": "مبلغ الدفعة مطلوب",
+    "payment_date": "تاريخ الدفعة",
+    "payment_method": "طريقة الدفع",
+    "payment_added": "تمت إضافة الدفعة",
+    "payment_deleted": "تم حذف الدفعة",
+    "no_payments": "لا توجد مدفوعات"
   },
   "purchases": {
     "title": "المشتريات",
@@ -361,7 +377,19 @@
     "required_expiry": "تاريخ الانتهاء مطلوب لكل صنف",
     "required_items": "أضف صنفاً واحداً على الأقل",
     "col_payment": "الدفع",
-    "due": "المستحق"
+    "due": "المستحق",
+    "item_tax": "الضريبة (%)",
+    "item_tax_amount": "مبلغ الضريبة",
+    "items_tax_total": "ضرائب الأصناف",
+    "search_placeholder": "البحث بالاسم أو الباركود...",
+    "add_new_medicine": "إضافة دواء جديد",
+    "quick_add_medicine": "إضافة سريعة للدواء",
+    "expiry_hint": "MM/YYYY أو DD/MM/YYYY",
+    "barcode_hint": "مسح → إدخال",
+    "batch_hint": "اختياري",
+    "no_medicine_found": "لا يوجد دواء",
+    "delete_title": "حذف أمر الشراء",
+    "delete_confirm": "حذف الشراء \"{{ref}}\"؟"
   },
   "batches": {
     "title": "الدفعات",
@@ -465,7 +493,9 @@
     "delete_confirm": "حذف \"{{name}}\"؟",
     "save_failed": "فشل الحفظ",
     "required_name": "اسم العميل مطلوب",
-    "points_earned": "النقاط المكتسبة"
+    "points_earned": "النقاط المكتسبة",
+    "whatsapp": "واتساب",
+    "whatsapp_no_phone": "لا يوجد رقم هاتف لهذا العميل"
   },
   "sales": {
     "title": "المبيعات",
@@ -513,7 +543,9 @@
     "col_discount": "الخصم",
     "col_subtotal": "المجموع الفرعي",
     "refund": "استرداد",
-    "print": "طباعة الفاتورة"
+    "print": "طباعة الفاتورة",
+    "whatsapp": "واتساب",
+    "whatsapp_msg": "إرسال الفاتورة عبر واتساب"
   },
   "returns": {
     "title": "المرتجعات",

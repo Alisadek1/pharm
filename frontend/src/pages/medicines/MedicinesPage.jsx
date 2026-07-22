@@ -16,16 +16,30 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost/pharm/backend
 
 function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   const { t } = useTranslation()
+
   const [form, setForm] = useState(initial ? {
     ...initial,
     public_price: parseFloat(initial.public_price) > 0 ? initial.public_price : (initial.selling_price || ''),
   } : {
-    name: '', name_ar: '', scientific_name: '', barcode: '', sku: '', category_id: '', company_id: '',
+    name: '', name_ar: '', barcode: '', sku: '', category_id: '', company_id: '',
     dosage_form: '', strength: '', unit: 'Piece', purchase_price: '', public_price: '',
     minimum_stock: 10, prescription_required: false, controlled_drug: false, description: '', is_active: true,
   })
+
+  // Pharmacist price calculation mode
+  const [priceMode, setPriceMode] = useState('fixed')
+  const [pricePct, setPricePct] = useState('')
+
   const [imageFile, setImageFile] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Recalculate pharmacist price when in percentage mode
+  useEffect(() => {
+    if (priceMode === 'percentage' && form.public_price && pricePct) {
+      const computed = (parseFloat(form.public_price) * parseFloat(pricePct) / 100).toFixed(3)
+      set('purchase_price', computed)
+    }
+  }, [priceMode, form.public_price, pricePct])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -41,10 +55,9 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">{t('medicines.name_en')}</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
+        <div><label className="label">{t('medicines.name_en')} *</label><input value={form.name} onChange={e => set('name', e.target.value)} className="input" required /></div>
         <div><label className="label">{t('medicines.name_ar')}</label><input value={form.name_ar} onChange={e => set('name_ar', e.target.value)} className="input" dir="rtl" /></div>
       </div>
-      <div><label className="label">{t('medicines.scientific_name')}</label><input value={form.scientific_name} onChange={e => set('scientific_name', e.target.value)} className="input" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="label">{t('medicines.barcode')}</label><input value={form.barcode} onChange={e => set('barcode', e.target.value)} className="input font-mono" /></div>
         <div><label className="label">{t('medicines.sku')}</label><input value={form.sku} onChange={e => set('sku', e.target.value)} className="input font-mono" placeholder={t('medicines.sku_hint')} /></div>
@@ -70,11 +83,82 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
         <div><label className="label">{t('medicines.strength')}</label><input value={form.strength} onChange={e => set('strength', e.target.value)} className="input" placeholder={t('medicines.strength_placeholder')} /></div>
         <div><label className="label">{t('medicines.unit')}</label><input value={form.unit} onChange={e => set('unit', e.target.value)} className="input" /></div>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div><label className="label">{t('medicines.pharmacist_price')} *</label><input type="number" step="any" min="0" value={form.purchase_price} onChange={e => set('purchase_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('medicines.public_price')} *</label><input type="number" step="any" min="0" value={form.public_price} onChange={e => set('public_price', e.target.value)} className="input" required /></div>
-        <div><label className="label">{t('medicines.min_stock')}</label><input type="number" min="0" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)} className="input" /></div>
+
+      {/* Public price */}
+      <div>
+        <label className="label">{t('medicines.public_price')} *</label>
+        <input
+          type="number" step="any" min="0"
+          value={form.public_price}
+          onChange={e => set('public_price', e.target.value)}
+          className="input"
+          required
+        />
       </div>
+
+      {/* Pharmacist price with mode toggle */}
+      <div className="space-y-2 p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/30">
+        <div className="flex items-center justify-between">
+          <label className="label mb-0">{t('medicines.pharmacist_price')} *</label>
+          <div className="flex gap-1 bg-white dark:bg-gray-700 rounded-lg p-0.5 border border-gray-200 dark:border-gray-600 text-xs">
+            <button
+              type="button"
+              onClick={() => setPriceMode('fixed')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${priceMode === 'fixed' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              {t('medicines.fixed_price')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPriceMode('percentage')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${priceMode === 'percentage' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              {t('medicines.percentage_price')}
+            </button>
+          </div>
+        </div>
+
+        {priceMode === 'percentage' ? (
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="label text-xs">{t('medicines.price_pct')}</label>
+              <input
+                type="number" step="any" min="0" max="100"
+                value={pricePct}
+                onChange={e => setPricePct(e.target.value)}
+                className="input"
+                placeholder="75"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="label text-xs">{t('medicines.pharmacist_price')} ({t('medicines.calculated')})</label>
+              <input
+                type="number" step="any" min="0"
+                value={form.purchase_price}
+                readOnly
+                className="input bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+              />
+            </div>
+          </div>
+        ) : (
+          <input
+            type="number" step="any" min="0"
+            value={form.purchase_price}
+            onChange={e => set('purchase_price', e.target.value)}
+            className="input"
+            required
+          />
+        )}
+        {priceMode === 'percentage' && form.public_price && pricePct && (
+          <p className="text-xs text-gray-500">{t('medicines.price_pct_hint', { pub: form.public_price, pct: pricePct, result: form.purchase_price })}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="label">{t('medicines.min_stock')}</label>
+        <input type="number" min="0" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)} className="input" />
+      </div>
+
       <div>
         <label className="label">{t('medicines.image')}</label>
         <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="input p-1.5 cursor-pointer" />
@@ -97,7 +181,9 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
           <span className="text-sm">{t('common.active')}</span>
         </label>
       </div>
-      <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? t('common.saving') : (initial ? t('medicines.update') : t('medicines.add'))}</button>
+      <button type="submit" disabled={loading} className="btn-primary w-full">
+        {loading ? t('common.saving') : (initial ? t('medicines.update') : t('medicines.add'))}
+      </button>
     </form>
   )
 }
@@ -120,7 +206,8 @@ export default function MedicinesPage() {
 
   const load = useCallback(() => {
     get('/api/medicines', { page: pg.page, per_page: pg.perPage, search }).then(res => {
-      setRows(res.data || []); pg.updateMeta(res.meta)
+      setRows(res.data || [])
+      pg.updateMeta(res.meta)
     })
   }, [pg.page, pg.perPage, search])
 
@@ -146,7 +233,9 @@ export default function MedicinesPage() {
         await api.post('/api/medicines', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
         toast.success(t('medicines.added'))
       }
-      setModal(null); setEditItem(null); load()
+      setModal(null)
+      setEditItem(null)
+      load()
     } catch (err) {
       toast.error(err.response?.data?.message || t('medicines.save_failed'))
     } finally { setSaving(false) }
@@ -154,14 +243,19 @@ export default function MedicinesPage() {
 
   const handleDelete = async () => {
     setDeleting(true)
-    try { await del(`/api/medicines/${delItem.id}`); toast.success(t('medicines.deactivated')); setDelItem(null); load() }
-    catch {} finally { setDeleting(false) }
+    try {
+      await del(`/api/medicines/${delItem.id}`)
+      toast.success(t('medicines.deactivated'))
+      setDelItem(null)
+      load()
+    } catch {} finally { setDeleting(false) }
   }
 
   const handleImport = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    const fd = new FormData(); fd.append('file', file)
+    const fd = new FormData()
+    fd.append('file', file)
     try {
       const res = await api.post('/api/medicines/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       toast.success(res.data.message)
@@ -185,12 +279,20 @@ export default function MedicinesPage() {
           <p className="text-sm text-gray-500">{t('medicines.count', { count: pg.total })}</p>
         </div>
         <div className="flex gap-2">
-          {can('medicines.view') && <button onClick={handleExport} className="btn-secondary btn-sm"><ArrowDownTrayIcon className="w-4 h-4" /> {t('common.export')}</button>}
+          {can('medicines.view') && (
+            <button onClick={handleExport} className="btn-secondary btn-sm">
+              <ArrowDownTrayIcon className="w-4 h-4" /> {t('common.export')}
+            </button>
+          )}
           {can('medicines.create') && (
             <>
-              <button onClick={() => importRef.current?.click()} className="btn-secondary btn-sm"><ArrowUpTrayIcon className="w-4 h-4" /> {t('common.import')}</button>
+              <button onClick={() => importRef.current?.click()} className="btn-secondary btn-sm">
+                <ArrowUpTrayIcon className="w-4 h-4" /> {t('common.import')}
+              </button>
               <input ref={importRef} type="file" accept=".csv" onChange={handleImport} className="hidden" />
-              <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary"><PlusIcon className="w-4 h-4" /> {t('medicines.add')}</button>
+              <button onClick={() => { setEditItem(null); setModal('form') }} className="btn-primary">
+                <PlusIcon className="w-4 h-4" /> {t('medicines.add')}
+              </button>
             </>
           )}
         </div>
@@ -256,14 +358,24 @@ export default function MedicinesPage() {
                       </td>
                       <td>
                         <div className="flex gap-1">
-                          {can('medicines.edit') && <button onClick={() => { setEditItem(row); setModal('form') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-600"><PencilIcon className="w-4 h-4" /></button>}
-                          {can('medicines.delete') && <button onClick={() => setDelItem(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>}
+                          {can('medicines.edit') && (
+                            <button onClick={() => { setEditItem(row); setModal('form') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-600">
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                          )}
+                          {can('medicines.delete') && (
+                            <button onClick={() => setDelItem(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('medicines.no_medicines')}</td></tr>}
+                {!rows.length && !loading && (
+                  <tr><td colSpan={9} className="text-center text-gray-400 py-12">{t('medicines.no_medicines')}</td></tr>
+                )}
               </tbody>
             </table>
           </div>
