@@ -75,7 +75,22 @@ class SupplierController
             $user['id'],
         ]);
 
-        $id       = (int)$db->lastInsertId();
+        $id = (int)$db->lastInsertId();
+
+        // Handle opening balance
+        $openingBalance = round((float)($body['opening_balance'] ?? 0), 3);
+        if ($openingBalance > 0) {
+            try {
+                $db->prepare("UPDATE suppliers SET balance = ? WHERE id = ?")->execute([$openingBalance, $id]);
+                $db->prepare("
+                    INSERT INTO supplier_payments (supplier_id, user_id, amount, payment_date, payment_method, notes)
+                    VALUES (?, ?, ?, CURDATE(), 'opening_balance', 'Opening Balance')
+                ")->execute([$id, $user['id'], $openingBalance]);
+            } catch (\Exception $e) {
+                Logger::warning('Opening balance failed: ' . $e->getMessage());
+            }
+        }
+
         $supplier = $db->query("SELECT * FROM suppliers WHERE id = {$id}")->fetch();
 
         Logger::activity($user['id'], 'create', 'suppliers', $id, "Created supplier: {$body['name']}");

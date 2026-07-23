@@ -11,25 +11,19 @@ function toWaPhone(phone) {
   return d
 }
 
-function buildWaMessage(sale, t) {
-  const name = sale.customer_name || t('sales.walk_in')
-  const inv  = sale.invoice_number
-  const total = parseFloat(sale.total || 0).toFixed(3)
-  const pts   = sale.loyalty_points_earned || 0
-  const bal   = sale.loyalty_points || 0
+const DEFAULT_WA_TEMPLATE = 'Thank you {customer_name}!\nInvoice: {invoice_number}\nTotal: {invoice_total}\nPoints Earned: +{earned_points}\nBalance: {current_points} pts\n\n{store_name}'
 
-  return (
-    `شكراً ${name} 🙏\n` +
-    `رقم الفاتورة: ${inv}\n` +
-    `الإجمالي: ${total} ر.س\n` +
-    `النقاط المكتسبة: +${pts} نقطة\n` +
-    `رصيد النقاط: ${bal} نقطة\n\n` +
-    `Thank you ${name} 🙏\n` +
-    `Invoice No: ${inv}\n` +
-    `Total: ${total} SAR\n` +
-    `Points Earned: +${pts} pts\n` +
-    `Loyalty Balance: ${bal} pts`
-  )
+function buildWaMessage(sale, settings) {
+  const template = settings.whatsapp_sales_template || DEFAULT_WA_TEMPLATE
+  const storeName = settings.pharmacy_name || 'PharmaCare'
+  return template
+    .replace(/{store_name}/g, storeName)
+    .replace(/{customer_name}/g, sale.customer_name || '')
+    .replace(/{invoice_number}/g, sale.invoice_number || '')
+    .replace(/{invoice_total}/g, parseFloat(sale.total || 0).toFixed(3))
+    .replace(/{earned_points}/g, String(sale.loyalty_points_earned || 0))
+    .replace(/{current_points}/g, String(sale.loyalty_points || 0))
+    .replace(/{date}/g, new Date(sale.sale_date || Date.now()).toLocaleDateString())
 }
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -46,10 +40,16 @@ export default function SaleDetailPage() {
   const { can } = useAuth()
   const { get, loading } = useApi()
   const [sale, setSale] = useState(null)
+  const [settings, setSettings] = useState({})
   const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     get(`/api/sales/${id}`).then(res => setSale(res.data))
+    get('/api/settings', null, { silent: true }).then(res => {
+      const s = {}
+      ;(res.data || []).forEach(item => { s[item.key] = item.value })
+      setSettings(s)
+    }).catch(() => {})
   }, [id])
 
   const handlePrint = () => window.print()
@@ -98,7 +98,7 @@ export default function SaleDetailPage() {
           )}
           {sale.customer_phone && (
             <a
-              href={`https://wa.me/${toWaPhone(sale.customer_phone)}?text=${encodeURIComponent(buildWaMessage(sale, t))}`}
+              href={`https://wa.me/${toWaPhone(sale.customer_phone)}?text=${encodeURIComponent(buildWaMessage(sale, settings))}`}
               target="_blank" rel="noopener noreferrer"
               title={t('sales.whatsapp')}
               className="btn-secondary btn-sm text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"

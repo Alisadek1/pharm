@@ -53,6 +53,8 @@ export default function POSPage() {
   const [modal, setModal]         = useState(null)
   const [processing, setProcessing] = useState(false)
   const [lastSale, setLastSale]   = useState(null)
+  const [addCustForm, setAddCustForm] = useState({ name: '', phone: '' })
+  const [addCustSaving, setAddCustSaving] = useState(false)
 
   const barcodeRef = useRef(null)
   const searchRef  = useRef(null)
@@ -187,6 +189,27 @@ export default function POSPage() {
   const deleteHeld = async (id) => {
     await api.delete(`/api/pos/held/${id}`)
     loadHeld()
+  }
+
+  const handleQuickAddCustomer = async (e) => {
+    e.preventDefault()
+    if (!addCustForm.name.trim()) return toast.error(t('customers.required_name'))
+    setAddCustSaving(true)
+    try {
+      const fd = new FormData()
+      fd.append('name', addCustForm.name)
+      if (addCustForm.phone) fd.append('phone', addCustForm.phone)
+      const res = await api.post('/api/customers', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const newCust = res.data.data || res.data
+      setCustomer(newCust)
+      setCustSearch('')
+      setCustResults([])
+      setAddCustForm({ name: '', phone: '' })
+      setModal(null)
+      toast.success(t('pos.customer_added'))
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('common.failed'))
+    } finally { setAddCustSaving(false) }
   }
 
   const handleCheckout = async () => {
@@ -392,7 +415,7 @@ export default function POSPage() {
                 className="input text-sm"
                 placeholder={t('pos.search_customer')}
               />
-              {customerResults.length > 0 && (
+              {(customerResults.length > 0 || (customerSearch.length >= 2)) && (
                 <div className="absolute top-full start-0 end-0 z-20 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border max-h-48 overflow-y-auto">
                   {customerResults.map(c => (
                     <button key={c.id} onClick={() => { setCustomer(c); setCustSearch(''); setCustResults([]) }}
@@ -401,6 +424,17 @@ export default function POSPage() {
                       <p className="text-xs text-gray-400">{c.phone} · {c.loyalty_points} {t('pos.points')}</p>
                     </button>
                   ))}
+                  {customerResults.length === 0 && (
+                    <div className="p-2 space-y-1">
+                      <p className="text-xs text-gray-400 text-center py-1">{t('common.no_results')}</p>
+                      <button
+                        onClick={() => { setCustResults([]); setAddCustForm({ name: customerSearch, phone: '' }); setModal('addCustomer') }}
+                        className="w-full text-center py-2 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg text-sm font-medium"
+                      >
+                        + {t('pos.add_customer')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -523,6 +557,37 @@ export default function POSPage() {
         </div>
       </div>
 
+      {/* Add Customer modal */}
+      <Modal open={modal === 'addCustomer'} onClose={() => setModal(null)} title={t('pos.quick_add_customer')} size="sm">
+        <form onSubmit={handleQuickAddCustomer} className="space-y-4">
+          <div>
+            <label className="label">{t('customers.full_name')} *</label>
+            <input
+              value={addCustForm.name}
+              onChange={e => setAddCustForm(f => ({ ...f, name: e.target.value }))}
+              className="input"
+              required
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">{t('common.phone')}</label>
+            <input
+              value={addCustForm.phone}
+              onChange={e => setAddCustForm(f => ({ ...f, phone: e.target.value }))}
+              className="input"
+              type="tel"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setModal(null)} className="btn-secondary flex-1">{t('common.cancel')}</button>
+            <button type="submit" disabled={addCustSaving} className="btn-primary flex-1">
+              {addCustSaving ? t('common.saving') : t('customers.add')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Held invoices modal */}
       <Modal open={modal === 'held'} onClose={() => setModal(null)} title={t('pos.held_invoices')}>
         <div className="space-y-2">
@@ -598,6 +663,30 @@ export default function POSPage() {
                 <span>{t('pos.change_due')}</span><span>{formatCurrency(lastSale.change_amount)}</span>
               </div>
             )}
+
+            {/* Loyalty summary */}
+            {lastSale.customer_name && (lastSale.loyalty_points_earned > 0 || lastSale.loyalty_points_used > 0) && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 space-y-1 text-sm">
+                <p className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <StarIcon className="w-4 h-4" /> {t('pos.loyalty_summary')}
+                </p>
+                {(() => {
+                  const current = parseInt(lastSale.customer_loyalty_points ?? 0)
+                  const used = parseInt(lastSale.loyalty_points_used ?? 0)
+                  const earned = parseInt(lastSale.loyalty_points_earned ?? 0)
+                  const prev = current + used - earned
+                  return (
+                    <div className="grid grid-cols-2 gap-1 text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      <span>{t('pos.prev_points')}:</span><span className="font-medium text-end">{prev}</span>
+                      {used > 0 && <><span>{t('pos.redeemed_points')}:</span><span className="font-medium text-end text-red-500">− {used}</span></>}
+                      {earned > 0 && <><span>{t('pos.earned_points')}:</span><span className="font-medium text-end text-green-600">+ {earned}</span></>}
+                      <span className="font-semibold">{t('pos.balance_points')}:</span><span className="font-bold text-end">{current}</span>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <button onClick={printReceipt} className="btn-secondary flex-1"><PrinterIcon className="w-4 h-4" /> {t('pos.print')}</button>
               <button onClick={() => setModal(null)} className="btn-primary flex-1">{t('pos.new_sale')}</button>

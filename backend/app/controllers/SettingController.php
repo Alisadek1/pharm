@@ -33,6 +33,8 @@ class SettingController
             'invoice_prefix', 'purchase_prefix', 'invoice_footer', 'invoice_footer_ar',
             'show_logo_invoice', 'show_qr_invoice',
             'default_printer', 'thermal_width', 'auto_print', 'print_copies', 'receipt_language',
+            'whatsapp_sales_template', 'whatsapp_sales_template_ar',
+            'whatsapp_customer_template', 'whatsapp_customer_template_ar',
         ];
 
         $stmt = $db->prepare("INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");

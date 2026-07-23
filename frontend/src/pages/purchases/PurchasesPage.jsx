@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { PlusIcon, EyeIcon, TrashIcon, MagnifyingGlassIcon, QrCodeIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, EyeIcon, TrashIcon, MagnifyingGlassIcon, QrCodeIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -180,6 +180,9 @@ function PurchaseForm({ suppliers, onSubmit, loading }) {
   })
   const [items, setItems] = useState([{ ...EMPTY_ITEM }])
   const [quickAdd, setQuickAdd] = useState(null) // { idx, query }
+  const [barcodeInput, setBarcodeInput] = useState('')
+  const [barcodeSearching, setBarcodeSearching] = useState(false)
+  const barcodeRef = useRef(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const addItem = () => setItems(it => [...it, { ...EMPTY_ITEM }])
@@ -198,6 +201,44 @@ function PurchaseForm({ suppliers, onSubmit, loading }) {
       purchase_price: med.purchase_price || '',
       public_price: med.public_price || med.selling_price || '',
     } : item))
+  }
+
+  const handleBarcodeSearch = async (e) => {
+    if (e.key !== 'Enter' || !barcodeInput.trim()) return
+    const code = barcodeInput.trim()
+    setBarcodeSearching(true)
+    try {
+      const res = await api.get('/api/medicines/search', { params: { q: code, limit: 5 } })
+      const results = res.data?.data || res.data || []
+      const exact = results.find(m => m.barcode === code || m.sku === code) || results[0]
+      if (!exact) {
+        toast.error(t('purchases.barcode_not_found', { code }))
+        setBarcodeInput('')
+        return
+      }
+      // Duplicate prevention: increase qty if already in list
+      const existingIdx = items.findIndex(it => it.medicine_id === exact.id)
+      if (existingIdx >= 0) {
+        setItems(it => it.map((item, i) => i === existingIdx ? { ...item, quantity: parseInt(item.quantity || 0) + 1 } : item))
+        toast.success(`${exact.name} ×${parseInt(items[existingIdx].quantity) + 1}`)
+      } else {
+        // Add new row (replace last empty row if any)
+        const emptyIdx = items.findIndex(it => !it.medicine_id)
+        const newItem = { ...EMPTY_ITEM, medicine_id: exact.id, medicine_name: exact.name, purchase_price: exact.purchase_price || '', public_price: exact.public_price || exact.selling_price || '' }
+        if (emptyIdx >= 0) {
+          setItems(it => it.map((item, i) => i === emptyIdx ? newItem : item))
+        } else {
+          setItems(it => [...it, newItem])
+        }
+        toast.success(t('purchases.medicine_added', { name: exact.name }))
+      }
+    } catch {
+      toast.error(t('purchases.barcode_not_found', { code }))
+    } finally {
+      setBarcodeSearching(false)
+      setBarcodeInput('')
+      barcodeRef.current?.focus()
+    }
   }
 
   const handleQuickCreated = (med) => {
@@ -250,13 +291,27 @@ function PurchaseForm({ suppliers, onSubmit, loading }) {
 
         {/* Items */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <label className="label mb-0">{t('purchases.items')}</label>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <QrCodeIcon className="w-4 h-4" />
-              <span>{t('purchases.barcode_hint')}</span>
-              <button type="button" onClick={addItem} className="btn-secondary btn-sm ms-2"><PlusIcon className="w-3.5 h-3.5" /> {t('purchases.add_row')}</button>
-            </div>
+            <button type="button" onClick={addItem} className="btn-secondary btn-sm"><PlusIcon className="w-3.5 h-3.5" /> {t('purchases.add_row')}</button>
+          </div>
+
+          {/* Barcode scanner */}
+          <div className="relative mb-3">
+            <QrCodeIcon className={`absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 ${barcodeSearching ? 'text-primary-500 animate-pulse' : 'text-gray-400'}`} />
+            <input
+              ref={barcodeRef}
+              value={barcodeInput}
+              onChange={e => setBarcodeInput(e.target.value)}
+              onKeyDown={handleBarcodeSearch}
+              className="input ps-9 pe-9 font-mono text-sm"
+              placeholder={t('purchases.barcode_scan')}
+            />
+            {barcodeInput && (
+              <button type="button" onClick={() => { setBarcodeInput(''); barcodeRef.current?.focus() }} className="absolute end-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Header */}

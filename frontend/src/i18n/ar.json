@@ -216,7 +216,15 @@
     "qty": "الكمية",
     "unit_price": "سعر الوحدة",
     "walk_in": "زبون عابر",
-    "no_customer": "لم يُحدد عميل"
+    "no_customer": "لم يُحدد عميل",
+    "add_customer": "إضافة عميل",
+    "quick_add_customer": "إضافة عميل سريعة",
+    "customer_added": "تمت إضافة العميل",
+    "loyalty_summary": "نقاط الولاء",
+    "prev_points": "الرصيد السابق",
+    "redeemed_points": "المستبدلة",
+    "earned_points": "المكتسبة",
+    "balance_points": "الرصيد الحالي"
   },
   "medicines": {
     "title": "الأدوية",
@@ -341,7 +349,10 @@
     "payment_method": "طريقة الدفع",
     "payment_added": "تمت إضافة الدفعة",
     "payment_deleted": "تم حذف الدفعة",
-    "no_payments": "لا توجد مدفوعات"
+    "no_payments": "لا توجد مدفوعات",
+    "opening_balance": "الرصيد الافتتاحي",
+    "opening_balance_hint": "الرصيد المستحق لهذا المورد عند الإنشاء",
+    "opening_balance_negative": "الرصيد الافتتاحي لا يمكن أن يكون سالباً"
   },
   "purchases": {
     "title": "المشتريات",
@@ -389,7 +400,10 @@
     "batch_hint": "اختياري",
     "no_medicine_found": "لا يوجد دواء",
     "delete_title": "حذف أمر الشراء",
-    "delete_confirm": "حذف الشراء \"{{ref}}\"؟"
+    "delete_confirm": "حذف الشراء \"{{ref}}\"؟",
+    "barcode_scan": "امسح الباركود واضغط Enter...",
+    "barcode_not_found": "لم يُعثر على دواء للباركود: {{code}}",
+    "medicine_added": "تمت إضافة {{name}}"
   },
   "batches": {
     "title": "الدفعات",
@@ -858,6 +872,22 @@
     "download_backup": "تحميل النسخة الاحتياطية",
     "saved": "تم حفظ الإعدادات",
     "save_failed": "فشل الحفظ",
+    "tab_whatsapp": "واتساب",
+    "whatsapp_title": "قوالب رسائل واتساب",
+    "whatsapp_hint": "خصّص الرسائل المرسلة عبر واتساب للعملاء. استخدم العناصر النائبة لإدراج البيانات تلقائياً.",
+    "whatsapp_placeholders": "العناصر النائبة المتاحة",
+    "whatsapp_sales": "قالب المبيعات (إنجليزي)",
+    "whatsapp_sales_help": "يُرسل مع كل فاتورة مبيعات عبر واتساب",
+    "whatsapp_sales_placeholder": "مرحباً {customer_name}!\nفاتورة: {invoice_number}\nالإجمالي: {invoice_total}\nنقاط مكتسبة: +{earned_points}\nرصيدك: {current_points} نقطة\n\n{store_name}",
+    "whatsapp_sales_ar": "قالب المبيعات (عربي)",
+    "whatsapp_sales_ar_help": "النسخة العربية من رسالة المبيعات",
+    "whatsapp_sales_ar_placeholder": "شكراً {customer_name}!\nرقم الفاتورة: {invoice_number}\nالإجمالي: {invoice_total}\nنقاط مكتسبة: +{earned_points}\nرصيد النقاط: {current_points}\n\n{store_name}",
+    "whatsapp_customer": "قالب العملاء (إنجليزي)",
+    "whatsapp_customer_help": "يُستخدم عند إرسال واتساب من صفحة العملاء",
+    "whatsapp_customer_placeholder": "Hello {customer_name}, greetings from {store_name}!",
+    "whatsapp_customer_ar": "قالب العملاء (عربي)",
+    "whatsapp_customer_ar_help": "النسخة العربية من رسالة العملاء",
+    "whatsapp_customer_ar_placeholder": "السلام عليكم {customer_name}، تحياتنا من {store_name}!",
     "activity_log": "سجل النشاط",
     "col_user": "المستخدم",
     "col_action": "الإجراء",

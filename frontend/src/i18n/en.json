@@ -216,7 +216,15 @@
     "qty": "Qty",
     "unit_price": "Unit Price",
     "walk_in": "Walk-in",
-    "no_customer": "No customer selected"
+    "no_customer": "No customer selected",
+    "add_customer": "Add Customer",
+    "quick_add_customer": "Quick Add Customer",
+    "customer_added": "Customer added",
+    "loyalty_summary": "Loyalty Points",
+    "prev_points": "Previous Balance",
+    "redeemed_points": "Redeemed",
+    "earned_points": "Earned",
+    "balance_points": "Current Balance"
   },
   "medicines": {
     "title": "Medicines",
@@ -341,7 +349,10 @@
     "payment_method": "Payment Method",
     "payment_added": "Payment recorded",
     "payment_deleted": "Payment deleted",
-    "no_payments": "No payments recorded"
+    "no_payments": "No payments recorded",
+    "opening_balance": "Opening Balance",
+    "opening_balance_hint": "Initial outstanding debt to this supplier",
+    "opening_balance_negative": "Opening balance cannot be negative"
   },
   "purchases": {
     "title": "Purchases",
@@ -389,7 +400,10 @@
     "batch_hint": "Optional",
     "no_medicine_found": "No medicine found",
     "delete_title": "Delete Purchase",
-    "delete_confirm": "Delete purchase \"{{ref}}\"?"
+    "delete_confirm": "Delete purchase \"{{ref}}\"?",
+    "barcode_scan": "Scan barcode and press Enter...",
+    "barcode_not_found": "Medicine not found for barcode: {{code}}",
+    "medicine_added": "{{name}} added"
   },
   "batches": {
     "title": "Batches",
@@ -757,6 +771,22 @@
     "download_backup": "Download Backup",
     "saved": "Settings saved",
     "save_failed": "Save failed",
+    "tab_whatsapp": "WhatsApp",
+    "whatsapp_title": "WhatsApp Templates",
+    "whatsapp_hint": "Customize the messages sent via WhatsApp. Use placeholders to insert dynamic values.",
+    "whatsapp_placeholders": "Available placeholders",
+    "whatsapp_sales": "Sales Message (EN)",
+    "whatsapp_sales_help": "Sent from Sale Detail page",
+    "whatsapp_sales_placeholder": "Thank you {customer_name}!\nInvoice: {invoice_number}\nTotal: {invoice_total}",
+    "whatsapp_sales_ar": "Sales Message (AR)",
+    "whatsapp_sales_ar_help": "Arabic version of the sales message",
+    "whatsapp_sales_ar_placeholder": "شكراً {customer_name}!\nرقم الفاتورة: {invoice_number}\nالإجمالي: {invoice_total}",
+    "whatsapp_customer": "Customer Message (EN)",
+    "whatsapp_customer_help": "Sent from Customer page",
+    "whatsapp_customer_placeholder": "Hello {customer_name}, welcome to {store_name}!",
+    "whatsapp_customer_ar": "Customer Message (AR)",
+    "whatsapp_customer_ar_help": "Arabic version of the customer message",
+    "whatsapp_customer_ar_placeholder": "مرحباً {customer_name}، أهلاً بك في {store_name}!",
     "activity_log": "Activity Log",
     "col_user": "User",
     "col_action": "Action",

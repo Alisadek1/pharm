@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   BuildingStorefrontIcon, CurrencyDollarIcon, DocumentTextIcon,
-  PrinterIcon, ServerIcon, PhotoIcon, CalculatorIcon,
+  PrinterIcon, ServerIcon, PhotoIcon, CalculatorIcon, ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -12,10 +12,11 @@ import { useTranslation } from 'react-i18next'
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1/pharm/backend/public'
 
 const TAB_GROUPS = [
-  { id: 'pharmacy',  labelKey: 'settings.tab_pharmacy',  icon: BuildingStorefrontIcon },
+  { id: 'pharmacy',  labelKey: 'settings.tab_pharmacy',   icon: BuildingStorefrontIcon },
   { id: 'financial', labelKey: 'settings.tab_financial',  icon: CurrencyDollarIcon },
   { id: 'pricing',   labelKey: 'settings.tab_pricing',    icon: CalculatorIcon },
   { id: 'invoice',   labelKey: 'settings.tab_invoice',    icon: DocumentTextIcon },
+  { id: 'whatsapp',  labelKey: 'settings.tab_whatsapp',   icon: ChatBubbleLeftRightIcon },
   { id: 'printer',   labelKey: 'settings.tab_printer',    icon: PrinterIcon },
   { id: 'backup',    labelKey: 'settings.tab_backup',     icon: ServerIcon },
 ]
@@ -307,6 +308,61 @@ export default function SettingsPage() {
                   <span className="text-sm">{t('settings.show_qr_label')}</span>
                 </label>
               </Field>
+            </div>
+          )}
+
+          {/* ── WhatsApp Templates ── */}
+          {tab === 'whatsapp' && (
+            <div>
+              <h2 className="text-base font-bold mb-1 text-gray-900 dark:text-white">{t('settings.whatsapp_title')}</h2>
+              <p className="text-sm text-gray-500 mb-5">{t('settings.whatsapp_hint')}</p>
+
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-xs text-blue-700 dark:text-blue-300">
+                <p className="font-semibold mb-1">{t('settings.whatsapp_placeholders')}:</p>
+                <p className="font-mono">{'{store_name} {customer_name} {invoice_number} {invoice_total} {earned_points} {current_points} {date}'}</p>
+              </div>
+
+              <Field label={t('settings.whatsapp_sales')} help={t('settings.whatsapp_sales_help')}>
+                <textarea
+                  value={s.whatsapp_sales_template || ''}
+                  onChange={e => set('whatsapp_sales_template', e.target.value)}
+                  rows={5}
+                  className="input resize-none font-mono text-sm"
+                  placeholder={t('settings.whatsapp_sales_placeholder')}
+                />
+              </Field>
+              <Field label={t('settings.whatsapp_sales_ar')} help={t('settings.whatsapp_sales_ar_help')}>
+                <textarea
+                  value={s.whatsapp_sales_template_ar || ''}
+                  onChange={e => set('whatsapp_sales_template_ar', e.target.value)}
+                  rows={5}
+                  dir="rtl"
+                  className="input resize-none font-mono text-sm"
+                  placeholder={t('settings.whatsapp_sales_ar_placeholder')}
+                />
+              </Field>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <Field label={t('settings.whatsapp_customer')} help={t('settings.whatsapp_customer_help')}>
+                  <textarea
+                    value={s.whatsapp_customer_template || ''}
+                    onChange={e => set('whatsapp_customer_template', e.target.value)}
+                    rows={3}
+                    className="input resize-none font-mono text-sm"
+                    placeholder={t('settings.whatsapp_customer_placeholder')}
+                  />
+                </Field>
+                <Field label={t('settings.whatsapp_customer_ar')} help={t('settings.whatsapp_customer_ar_help')}>
+                  <textarea
+                    value={s.whatsapp_customer_template_ar || ''}
+                    onChange={e => set('whatsapp_customer_template_ar', e.target.value)}
+                    rows={3}
+                    dir="rtl"
+                    className="input resize-none font-mono text-sm"
+                    placeholder={t('settings.whatsapp_customer_ar_placeholder')}
+                  />
+                </Field>
+              </div>
             </div>
           )}
 

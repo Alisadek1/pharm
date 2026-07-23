@@ -323,7 +323,8 @@ class POSController
     private function getSaleById(PDO $db, int $id): ?array
     {
         $stmt = $db->prepare("
-            SELECT s.*, c.name as customer_name, u.name as cashier_name
+            SELECT s.*, c.name as customer_name, c.loyalty_points as customer_loyalty_points,
+                   c.phone as customer_phone, u.name as cashier_name
             FROM sales s
             LEFT JOIN customers c ON c.id = s.customer_id
             LEFT JOIN users u ON u.id = s.user_id

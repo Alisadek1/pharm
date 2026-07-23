@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon, BanknotesIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -15,9 +15,10 @@ const PAYMENT_METHODS = ['cash', 'visa', 'bank_transfer', 'wallet']
 
 function SupplierForm({ initial, onSubmit, loading }) {
   const { t } = useTranslation()
+  const isEdit = !!initial?.id
   const [form, setForm] = useState(initial || {
     name: '', company_name: '', phone: '', email: '',
-    address: '', tax_number: '', credit_limit: 0, notes: '',
+    address: '', tax_number: '', credit_limit: 0, notes: '', opening_balance: '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -25,6 +26,7 @@ function SupplierForm({ initial, onSubmit, loading }) {
     e.preventDefault()
     if (!form.name.trim()) return toast.error(t('suppliers.required_name'))
     if (!form.company_name.trim()) return toast.error(t('suppliers.company_required'))
+    if (!isEdit && form.opening_balance && parseFloat(form.opening_balance) < 0) return toast.error(t('suppliers.opening_balance_negative'))
     onSubmit(form)
   }
 
@@ -48,10 +50,23 @@ function SupplierForm({ initial, onSubmit, loading }) {
         <div><label className="label">{t('suppliers.tax_number')}</label><input value={form.tax_number} onChange={e => set('tax_number', e.target.value)} className="input" /></div>
         <div><label className="label">{t('suppliers.credit_limit')}</label><input type="number" min="0" value={form.credit_limit} onChange={e => set('credit_limit', e.target.value)} className="input" /></div>
       </div>
+      {!isEdit && (
+        <div>
+          <label className="label">{t('suppliers.opening_balance')} <span className="text-gray-400 font-normal">({t('common.optional_label')})</span></label>
+          <input
+            type="number" min="0" step="any"
+            value={form.opening_balance}
+            onChange={e => set('opening_balance', e.target.value)}
+            className="input"
+            placeholder="0.000"
+          />
+          <p className="text-xs text-gray-400 mt-1">{t('suppliers.opening_balance_hint')}</p>
+        </div>
+      )}
       <div><label className="label">{t('common.address')}</label><textarea value={form.address} onChange={e => set('address', e.target.value)} rows={2} className="input resize-none" /></div>
       <div><label className="label">{t('common.notes')}</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className="input resize-none" /></div>
       <button type="submit" disabled={loading} className="btn-primary w-full">
-        {loading ? t('common.saving') : (initial ? t('suppliers.update') : t('suppliers.add'))}
+        {loading ? t('common.saving') : (isEdit ? t('suppliers.update') : t('suppliers.add'))}
       </button>
     </form>
   )
@@ -133,6 +148,7 @@ export default function SuppliersPage() {
   const [viewTab, setViewTab] = useState('purchases')
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [deletingPayment, setDeletingPayment] = useState(null)
+  const [quickPaySupplier, setQuickPaySupplier] = useState(null)
 
   const load = useCallback(() => {
     get('/api/suppliers', { page: pg.page, per_page: pg.perPage, search }).then(res => {
@@ -254,9 +270,14 @@ export default function SuppliersPage() {
                     <td><span className="badge badge-blue">{row.total_purchases}</span></td>
                     <td>
                       <div className="flex gap-1">
-                        <button onClick={() => openView(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500">
+                        <button onClick={() => openView(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500" title={t('common.actions')}>
                           <EyeIcon className="w-4 h-4" />
                         </button>
+                        {can('suppliers.edit') && (
+                          <button onClick={() => setQuickPaySupplier(row)} title={t('suppliers.add_payment')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-green-600">
+                            <BanknotesIcon className="w-4 h-4" />
+                          </button>
+                        )}
                         {can('suppliers.edit') && (
                           <button onClick={() => { setEditItem(row); setModal('form') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-600">
                             <PencilIcon className="w-4 h-4" />
@@ -284,6 +305,17 @@ export default function SuppliersPage() {
       {/* Add / Edit modal */}
       <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? t('suppliers.update') : t('suppliers.add')}>
         <SupplierForm initial={editItem} onSubmit={handleSave} loading={saving} />
+      </Modal>
+
+      {/* Quick Add Payment modal */}
+      <Modal open={!!quickPaySupplier} onClose={() => setQuickPaySupplier(null)} title={`${t('suppliers.add_payment')} — ${quickPaySupplier?.name}`} size="sm">
+        {quickPaySupplier && (
+          <PaymentForm
+            supplierId={quickPaySupplier.id}
+            onSuccess={() => { setQuickPaySupplier(null); load() }}
+            onClose={() => setQuickPaySupplier(null)}
+          />
+        )}
       </Modal>
 
       {/* View modal */}
@@ -389,8 +421,12 @@ export default function SuppliersPage() {
                       {payments.map(p => (
                         <tr key={p.id}>
                           <td>{formatDate(p.payment_date)}</td>
-                          <td className="font-semibold text-green-600">{formatCurrency(p.amount)}</td>
-                          <td className="capitalize">{p.payment_method}</td>
+                          <td className={`font-semibold ${p.payment_method === 'opening_balance' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600'}`}>{formatCurrency(p.amount)}</td>
+                          <td>
+                            {p.payment_method === 'opening_balance'
+                              ? <span className="badge badge-yellow text-xs">{t('suppliers.opening_balance')}</span>
+                              : <span className="capitalize">{p.payment_method}</span>}
+                          </td>
                           <td className="text-gray-500 text-sm">{p.notes || '—'}</td>
                           {can('suppliers.edit') && (
                             <td>
