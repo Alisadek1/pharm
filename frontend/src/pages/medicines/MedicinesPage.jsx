@@ -30,13 +30,12 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   const [priceMode, setPriceMode] = useState('fixed')
   const [pricePct, setPricePct] = useState('')
 
-  const [imageFile, setImageFile] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // Recalculate pharmacist price when in percentage mode
+  // Recalculate pharmacist price when in percentage mode (discount: public - pct%)
   useEffect(() => {
     if (priceMode === 'percentage' && form.public_price && pricePct) {
-      const computed = (parseFloat(form.public_price) * parseFloat(pricePct) / 100).toFixed(3)
+      const computed = (parseFloat(form.public_price) * (1 - parseFloat(pricePct) / 100)).toFixed(3)
       set('purchase_price', computed)
     }
   }, [priceMode, form.public_price, pricePct])
@@ -48,7 +47,6 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
 
     const fd = new FormData()
     Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''))
-    if (imageFile) fd.append('image', imageFile)
     onSubmit(fd)
   }
 
@@ -159,13 +157,6 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
         <input type="number" min="0" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)} className="input" />
       </div>
 
-      <div>
-        <label className="label">{t('medicines.image')}</label>
-        <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="input p-1.5 cursor-pointer" />
-        {initial?.image && !imageFile && (
-          <img src={`${BASE_URL}/${initial.image}`} className="mt-2 h-16 w-16 rounded object-cover" alt="" />
-        )}
-      </div>
       <div><label className="label">{t('common.description')}</label><textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className="input resize-none" /></div>
       <div className="flex gap-6">
         <label className="flex items-center gap-2 cursor-pointer">

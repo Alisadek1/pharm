@@ -272,10 +272,10 @@
     "controlled_short": "CD",
     "price_mode": "Price Calculation Mode",
     "fixed_price": "Fixed",
-    "percentage_price": "% of Public",
-    "price_pct": "% of Public Price",
+    "percentage_price": "% Discount",
+    "price_pct": "Discount %",
     "calculated": "auto-calculated",
-    "price_pct_hint": "{{pub}} × {{pct}}% = {{result}}"
+    "price_pct_hint": "{{pub}} − {{pct}}% discount = {{result}}"
   },
   "categories": {
     "title": "Categories",

@@ -272,10 +272,10 @@
     "controlled_short": "مضبوط",
     "price_mode": "طريقة احتساب السعر",
     "fixed_price": "ثابت",
-    "percentage_price": "% من سعر الجمهور",
-    "price_pct": "نسبة من سعر الجمهور",
+    "percentage_price": "% خصم",
+    "price_pct": "نسبة الخصم %",
     "calculated": "محسوب تلقائياً",
-    "price_pct_hint": "{{pub}} × {{pct}}% = {{result}}"
+    "price_pct_hint": "{{pub}} − {{pct}}% خصم = {{result}}"
   },
   "categories": {
     "title": "الفئات",
