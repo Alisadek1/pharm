@@ -21,7 +21,8 @@ function parseExpiry(raw) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
   const parts = raw.split('/')
   if (parts.length === 2) {
-    const [mm, yyyy] = parts
+    let [mm, yyyy] = parts
+    if (yyyy.length === 2) yyyy = '20' + yyyy   // 1/26 → 2026-01-01
     if (mm && yyyy && mm.length <= 2 && yyyy.length === 4) return `${yyyy}-${mm.padStart(2, '0')}-01`
   }
   if (parts.length === 3) {
