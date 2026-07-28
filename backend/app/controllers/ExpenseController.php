@@ -61,7 +61,7 @@ class ExpenseController
                    u.name AS created_by_name
             FROM expenses e
             JOIN expense_categories ec ON ec.id = e.category_id
-            LEFT JOIN users u ON u.id = e.created_by
+            LEFT JOIN users u ON u.id = e.user_id
             WHERE {$whereStr}
             ORDER BY e.expense_date DESC, e.id DESC
             LIMIT ? OFFSET ?
@@ -91,7 +91,7 @@ class ExpenseController
 
         $db = Database::getInstance();
 
-        $cat = $db->prepare("SELECT id FROM expense_categories WHERE id = ? AND is_active = 1");
+        $cat = $db->prepare("SELECT id FROM expense_categories WHERE id = ?");
         $cat->execute([(int)$body['category_id']]);
         if (!$cat->fetch()) {
             Response::error('Invalid expense category');
@@ -104,7 +104,7 @@ class ExpenseController
         $shiftId = $shift ? (int)$shift['id'] : null;
 
         $stmt = $db->prepare("
-            INSERT INTO expenses (category_id, amount, expense_date, payment_method, notes, created_by, shift_id)
+            INSERT INTO expenses (category_id, amount, expense_date, payment_method, notes, user_id, shift_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
@@ -300,11 +300,10 @@ class ExpenseController
         }
 
         $db = Database::getInstance();
-        $db->prepare("UPDATE expense_categories SET name=?, name_ar=?, is_active=? WHERE id=?")
+        $db->prepare("UPDATE expense_categories SET name=?, name_ar=? WHERE id=?")
            ->execute([
                trim($body['name']),
                trim($body['name_ar'] ?? ''),
-               isset($body['is_active']) ? (int)(bool)$body['is_active'] : 1,
                $id,
            ]);
 
@@ -321,7 +320,7 @@ class ExpenseController
                    u.name AS created_by_name
             FROM expenses e
             JOIN expense_categories ec ON ec.id = e.category_id
-            LEFT JOIN users u ON u.id = e.created_by
+            LEFT JOIN users u ON u.id = e.user_id
             WHERE e.id = ?
         ");
         $stmt->execute([$id]);
