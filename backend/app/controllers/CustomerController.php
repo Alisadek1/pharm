@@ -239,4 +239,53 @@ class CustomerController
 
         Response::paginated($stmt->fetchAll(), $total, $page, $perPage);
     }
+
+    public function statement(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+        AuthMiddleware::require($user, 'customers.view');
+
+        $id   = (int)$params['id'];
+        $db   = Database::getInstance();
+        $from = $_GET['date_from'] ?? date('Y-m-01');
+        $to   = $_GET['date_to']   ?? date('Y-m-d');
+
+        $stmt = $db->prepare("SELECT * FROM customers WHERE id = ?");
+        $stmt->execute([$id]);
+        $customer = $stmt->fetch();
+        if (!$customer) {
+            Response::notFound('Customer not found');
+        }
+
+        // Sales in period
+        $stmt = $db->prepare("
+            SELECT s.id, s.invoice_number, s.total, s.paid_amount, s.due_amount,
+                   s.payment_method, s.status, s.sale_date, u.name AS cashier_name
+            FROM sales s
+            LEFT JOIN users u ON u.id = s.user_id
+            WHERE s.customer_id = ? AND DATE(s.sale_date) BETWEEN ? AND ?
+            ORDER BY s.sale_date ASC
+        ");
+        $stmt->execute([$id, $from, $to]);
+        $sales = $stmt->fetchAll();
+
+        // Totals
+        $totStmt = $db->prepare("
+            SELECT COALESCE(SUM(total), 0) AS total_invoiced,
+                   COALESCE(SUM(paid_amount), 0) AS total_paid,
+                   COALESCE(SUM(due_amount), 0) AS total_outstanding
+            FROM sales
+            WHERE customer_id = ? AND DATE(sale_date) BETWEEN ? AND ?
+        ");
+        $totStmt->execute([$id, $from, $to]);
+        $totals = $totStmt->fetch();
+
+        Response::success([
+            'customer' => $customer,
+            'date_from' => $from,
+            'date_to'   => $to,
+            'sales'     => $sales,
+            'totals'    => $totals,
+        ]);
+    }
 }

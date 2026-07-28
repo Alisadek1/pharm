@@ -17,10 +17,13 @@
     "settings": "Settings",
     "integration": "Integration",
     "notifications": "Notifications",
+    "expenses": "Expenses",
+    "shifts": "Shifts",
     "sections": {
       "catalog": "Catalog",
       "supply": "Supply",
       "sales": "Sales",
+      "finance": "Finance",
       "insights": "Insights",
       "admin": "Admin"
     }
@@ -54,6 +57,10 @@
     "previous": "Previous",
     "next": "Next",
     "clear": "Clear",
+    "all": "All",
+    "from": "From",
+    "to": "To",
+    "added_by": "Added By",
     "failed": "Operation failed",
     "permission_denied": "Permission denied",
     "print": "Print",
@@ -80,7 +87,9 @@
     "last": "Last",
     "rows_per_page": "Rows per page",
     "no_results": "No results found",
-    "required": "Required"
+    "required": "Required",
+    "showing_first": "Showing first {{n}} of {{total}} records",
+    "id": "ID"
   },
   "status": {
     "completed": "Completed",
@@ -275,7 +284,11 @@
     "percentage_price": "% Discount",
     "price_pct": "Discount %",
     "calculated": "auto-calculated",
-    "price_pct_hint": "{{pub}} − {{pct}}% discount = {{result}}"
+    "price_pct_hint": "{{pub}} − {{pct}}% discount = {{result}}",
+    "tab_details": "Details",
+    "tab_price_history": "Price History",
+    "price_change_reason": "Reason for Price Change",
+    "price_change_reason_hint": "Optional — describe why the price changed"
   },
   "categories": {
     "title": "Categories",
@@ -352,7 +365,8 @@
     "no_payments": "No payments recorded",
     "opening_balance": "Opening Balance",
     "opening_balance_hint": "Initial outstanding debt to this supplier",
-    "opening_balance_negative": "Opening balance cannot be negative"
+    "opening_balance_negative": "Opening balance cannot be negative",
+    "statement": "Account Statement"
   },
   "purchases": {
     "title": "Purchases",
@@ -509,7 +523,11 @@
     "required_name": "Customer name is required",
     "points_earned": "Points Earned",
     "whatsapp": "WhatsApp",
-    "whatsapp_no_phone": "No phone number for this customer"
+    "whatsapp_no_phone": "No phone number for this customer",
+    "statement": "Account Statement",
+    "stmt_invoiced": "Total Invoiced",
+    "stmt_paid": "Total Paid",
+    "stmt_due": "Outstanding Balance"
   },
   "sales": {
     "title": "Sales",
@@ -853,6 +871,97 @@
       "warning": "Warning",
       "error": "Error"
     }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "subtitle": "Track and manage operational expenses",
+    "add": "Add Expense",
+    "edit": "Edit Expense",
+    "created": "Expense added",
+    "updated": "Expense updated",
+    "deleted": "Expense deleted",
+    "delete_confirm": "Delete expense?",
+    "delete_confirm_msg": "Delete expense of {{amount}}? This cannot be undone.",
+    "category": "Category",
+    "categories": "Categories",
+    "manage_categories": "Manage Categories",
+    "category_name_en": "Category name (EN)",
+    "category_name_ar": "Category name (AR)",
+    "select_category": "Select category...",
+    "amount": "Amount",
+    "payment_method": "Payment Method",
+    "total_period": "Total (period)",
+    "by_category": "By Category",
+    "methods": {
+      "cash": "Cash",
+      "visa": "Card / Visa",
+      "bank_transfer": "Bank Transfer"
+    }
+  },
+  "shifts": {
+    "title": "Shifts",
+    "subtitle": "Cash drawer & shift management",
+    "open_shift": "Open Shift",
+    "close_shift": "Close Shift",
+    "opened": "Shift opened",
+    "closed": "Shift closed",
+    "active_shift": "Active Shift",
+    "shift_report": "Shift Report",
+    "cashier": "Cashier",
+    "opened_by": "Opened By",
+    "opened_at": "Opened At",
+    "closed_at": "Closed At",
+    "opening_cash": "Opening Cash",
+    "closing_cash": "Closing Cash",
+    "cash_sales": "Cash Sales",
+    "card_sales": "Card Sales",
+    "wallet_sales": "Wallet Sales",
+    "expenses_total": "Expenses",
+    "refunds": "Refunds",
+    "total_sales": "Total Sales",
+    "expected_cash": "Expected Cash",
+    "expected": "Expected",
+    "difference": "Difference",
+    "sales_count": "Transactions",
+    "opening_notes": "Opening Notes",
+    "closing_notes": "Closing Notes",
+    "expenses_list": "Expenses in this shift",
+    "status_open": "Open",
+    "status_closed": "Closed"
+  },
+  "barcode": {
+    "print_label": "Print Barcode Label",
+    "qty_labels": "Number of labels"
+  },
+  "price_history": {
+    "title": "Price History",
+    "no_history": "No price changes recorded",
+    "old_purchase": "Old Purchase Price",
+    "new_purchase": "New Purchase Price",
+    "old_public": "Old Public Price",
+    "new_public": "New Public Price",
+    "changed_by": "Changed By",
+    "changed_at": "Changed At",
+    "reason": "Reason"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "today_sales": "Today's Sales",
+    "today_purchases": "Today's Purchases",
+    "today_profit": "Today's Gross Profit",
+    "today_expenses": "Today's Expenses",
+    "net_profit": "Net Profit",
+    "monthly_sales": "Monthly Sales",
+    "low_stock_alert": "{{count}} medicines low on stock",
+    "expired_alert": "{{count}} medicines expired",
+    "near_expiry_alert": "{{count}} medicines near expiry",
+    "active_shift": "Active Shift",
+    "no_active_shift": "No active shift",
+    "pending_payments": "Pending Payments",
+    "recent_sales": "Recent Sales",
+    "top_medicines": "Top Medicines (30 days)",
+    "quick_actions": "Quick Actions",
+    "view_all": "View all →"
   },
   "layout": {
     "logout": "Logout",

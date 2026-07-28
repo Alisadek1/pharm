@@ -51,6 +51,7 @@ $router->group('/api/suppliers', function (Router $r) {
     $r->put('/{id}',                        [SupplierController::class, 'update']);
     $r->delete('/{id}',                     [SupplierController::class, 'destroy']);
     $r->get('/{id}/purchases',              [SupplierController::class, 'purchases']);
+    $r->get('/{id}/statement',              [SupplierController::class, 'statement']);
     $r->get('/{supplier_id}/payments',      [SupplierPaymentController::class, 'index']);
     $r->post('/{supplier_id}/payments',     [SupplierPaymentController::class, 'store']);
     $r->delete('/{supplier_id}/payments/{id}', [SupplierPaymentController::class, 'destroy']);
@@ -65,6 +66,7 @@ $router->group('/api/customers', function (Router $r) {
     $r->put('/{id}',            [CustomerController::class, 'update']);
     $r->delete('/{id}',         [CustomerController::class, 'destroy']);
     $r->get('/{id}/history',    [CustomerController::class, 'history']);
+    $r->get('/{id}/statement',  [CustomerController::class, 'statement']);
 });
 
 // Medicines
@@ -82,6 +84,7 @@ $router->group('/api/medicines', function (Router $r) {
     $r->delete('/{id}',         [MedicineController::class, 'destroy']);
     $r->get('/{id}/batches',        [MedicineController::class, 'batches']);
     $r->get('/{id}/purchase-lines', [MedicineController::class, 'purchaseLines']);
+    $r->get('/{id}/price-history',  [MedicineController::class, 'priceHistory']);
 });
 
 // Batches
@@ -192,6 +195,31 @@ $router->group('/api/roles', function (Router $r) {
     $r->get('/',                [RoleController::class, 'index']);
     $r->get('/{id}/permissions',[RoleController::class, 'permissions']);
     $r->put('/{id}/permissions',[RoleController::class, 'updatePermissions']);
+});
+
+// Expenses (v3)
+$router->group('/api/expenses', function (Router $r) {
+    $r->get('/',            [ExpenseController::class, 'index']);
+    $r->post('/',           [ExpenseController::class, 'store']);
+    $r->get('/summary',     [ExpenseController::class, 'summary']);
+    $r->get('/{id}',        [ExpenseController::class, 'show']);
+    $r->put('/{id}',        [ExpenseController::class, 'update']);
+    $r->delete('/{id}',     [ExpenseController::class, 'destroy']);
+});
+
+$router->group('/api/expense-categories', function (Router $r) {
+    $r->get('/',            [ExpenseController::class, 'categories']);
+    $r->post('/',           [ExpenseController::class, 'storeCategory']);
+    $r->put('/{id}',        [ExpenseController::class, 'updateCategory']);
+});
+
+// Shifts (v3)
+$router->group('/api/shifts', function (Router $r) {
+    $r->get('/',            [ShiftController::class, 'index']);
+    $r->post('/open',       [ShiftController::class, 'open']);
+    $r->get('/current',     [ShiftController::class, 'current']);
+    $r->get('/{id}',        [ShiftController::class, 'show']);
+    $r->post('/{id}/close', [ShiftController::class, 'close']);
 });
 
 // Settings

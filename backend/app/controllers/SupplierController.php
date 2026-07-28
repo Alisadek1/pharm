@@ -248,4 +248,53 @@ class SupplierController
 
         Response::paginated($stmt->fetchAll(), $total, $page, $perPage);
     }
+
+    public function statement(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+        AuthMiddleware::require($user, 'suppliers.view');
+
+        $id   = (int)$params['id'];
+        $db   = Database::getInstance();
+        $from = $_GET['date_from'] ?? date('Y-m-01');
+        $to   = $_GET['date_to']   ?? date('Y-m-d');
+
+        $stmt = $db->prepare("SELECT * FROM suppliers WHERE id = ?");
+        $stmt->execute([$id]);
+        $supplier = $stmt->fetch();
+        if (!$supplier) {
+            Response::notFound('Supplier not found');
+        }
+
+        // Purchases in period
+        $stmt = $db->prepare("
+            SELECT p.id, p.invoice_number, p.total_amount, p.paid_amount, p.due_amount,
+                   p.payment_method, p.status, p.purchase_date, u.name AS created_by_name
+            FROM purchases p
+            LEFT JOIN users u ON u.id = p.user_id
+            WHERE p.supplier_id = ? AND DATE(p.purchase_date) BETWEEN ? AND ?
+            ORDER BY p.purchase_date ASC
+        ");
+        $stmt->execute([$id, $from, $to]);
+        $purchases = $stmt->fetchAll();
+
+        // Totals
+        $totStmt = $db->prepare("
+            SELECT COALESCE(SUM(total_amount), 0) AS total_invoiced,
+                   COALESCE(SUM(paid_amount), 0)  AS total_paid,
+                   COALESCE(SUM(due_amount), 0)   AS total_outstanding
+            FROM purchases
+            WHERE supplier_id = ? AND DATE(purchase_date) BETWEEN ? AND ?
+        ");
+        $totStmt->execute([$id, $from, $to]);
+        $totals = $totStmt->fetch();
+
+        Response::success([
+            'supplier'  => $supplier,
+            'date_from' => $from,
+            'date_to'   => $to,
+            'purchases' => $purchases,
+            'totals'    => $totals,
+        ]);
+    }
 }

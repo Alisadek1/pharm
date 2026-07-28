@@ -17,10 +17,13 @@
     "settings": "الإعدادات",
     "integration": "التكامل",
     "notifications": "الإشعارات",
+    "expenses": "المصروفات",
+    "shifts": "الورديات",
     "sections": {
       "catalog": "الكتالوج",
       "supply": "التوريد",
       "sales": "المبيعات",
+      "finance": "المالية",
       "insights": "الإحصائيات",
       "admin": "الإدارة"
     }
@@ -54,6 +57,10 @@
     "previous": "السابق",
     "next": "التالي",
     "clear": "مسح",
+    "all": "الكل",
+    "from": "من",
+    "to": "إلى",
+    "added_by": "أضافه",
     "failed": "فشلت العملية",
     "permission_denied": "لا تملك الصلاحية",
     "print": "طباعة",
@@ -80,7 +87,9 @@
     "last": "الأخير",
     "rows_per_page": "صفوف لكل صفحة",
     "no_results": "لا توجد نتائج",
-    "required": "مطلوب"
+    "required": "مطلوب",
+    "showing_first": "عرض أول {{n}} من {{total}} سجل",
+    "id": "المعرف"
   },
   "status": {
     "completed": "مكتمل",
@@ -275,7 +284,11 @@
     "percentage_price": "% خصم",
     "price_pct": "نسبة الخصم %",
     "calculated": "محسوب تلقائياً",
-    "price_pct_hint": "{{pub}} − {{pct}}% خصم = {{result}}"
+    "price_pct_hint": "{{pub}} − {{pct}}% خصم = {{result}}",
+    "tab_details": "التفاصيل",
+    "tab_price_history": "سجل الأسعار",
+    "price_change_reason": "سبب تغيير السعر",
+    "price_change_reason_hint": "اختياري — صف سبب تغيير السعر"
   },
   "categories": {
     "title": "الفئات",
@@ -352,7 +365,8 @@
     "no_payments": "لا توجد مدفوعات",
     "opening_balance": "الرصيد الافتتاحي",
     "opening_balance_hint": "الرصيد المستحق لهذا المورد عند الإنشاء",
-    "opening_balance_negative": "الرصيد الافتتاحي لا يمكن أن يكون سالباً"
+    "opening_balance_negative": "الرصيد الافتتاحي لا يمكن أن يكون سالباً",
+    "statement": "كشف حساب"
   },
   "purchases": {
     "title": "المشتريات",
@@ -509,7 +523,11 @@
     "required_name": "اسم العميل مطلوب",
     "points_earned": "النقاط المكتسبة",
     "whatsapp": "واتساب",
-    "whatsapp_no_phone": "لا يوجد رقم هاتف لهذا العميل"
+    "whatsapp_no_phone": "لا يوجد رقم هاتف لهذا العميل",
+    "statement": "كشف حساب",
+    "stmt_invoiced": "إجمالي الفواتير",
+    "stmt_paid": "إجمالي المدفوع",
+    "stmt_due": "الرصيد المستحق"
   },
   "sales": {
     "title": "المبيعات",
@@ -954,6 +972,97 @@
       "warning": "تحذير",
       "error": "خطأ"
     }
+  },
+  "expenses": {
+    "title": "المصروفات",
+    "subtitle": "تتبع وإدارة المصروفات التشغيلية",
+    "add": "إضافة مصروف",
+    "edit": "تعديل المصروف",
+    "created": "تمت إضافة المصروف",
+    "updated": "تم تحديث المصروف",
+    "deleted": "تم حذف المصروف",
+    "delete_confirm": "حذف المصروف؟",
+    "delete_confirm_msg": "حذف مصروف بمبلغ {{amount}}؟ لا يمكن التراجع عن هذه العملية.",
+    "category": "الفئة",
+    "categories": "الفئات",
+    "manage_categories": "إدارة الفئات",
+    "category_name_en": "اسم الفئة (EN)",
+    "category_name_ar": "اسم الفئة (AR)",
+    "select_category": "اختر فئة...",
+    "amount": "المبلغ",
+    "payment_method": "طريقة الدفع",
+    "total_period": "الإجمالي (الفترة)",
+    "by_category": "حسب الفئة",
+    "methods": {
+      "cash": "نقداً",
+      "visa": "بطاقة / فيزا",
+      "bank_transfer": "تحويل بنكي"
+    }
+  },
+  "shifts": {
+    "title": "الورديات",
+    "subtitle": "إدارة الصندوق والورديات",
+    "open_shift": "فتح وردية",
+    "close_shift": "إغلاق وردية",
+    "opened": "تم فتح الوردية",
+    "closed": "تم إغلاق الوردية",
+    "active_shift": "الوردية الحالية",
+    "shift_report": "تقرير الوردية",
+    "cashier": "الكاشير",
+    "opened_by": "فُتحت بواسطة",
+    "opened_at": "وقت الفتح",
+    "closed_at": "وقت الإغلاق",
+    "opening_cash": "رصيد الافتتاح",
+    "closing_cash": "رصيد الإغلاق",
+    "cash_sales": "مبيعات نقدية",
+    "card_sales": "مبيعات بطاقة",
+    "wallet_sales": "مبيعات محفظة",
+    "expenses_total": "المصروفات",
+    "refunds": "المرتجعات",
+    "total_sales": "إجمالي المبيعات",
+    "expected_cash": "النقد المتوقع",
+    "expected": "المتوقع",
+    "difference": "الفرق",
+    "sales_count": "المعاملات",
+    "opening_notes": "ملاحظات الافتتاح",
+    "closing_notes": "ملاحظات الإغلاق",
+    "expenses_list": "مصروفات هذه الوردية",
+    "status_open": "مفتوحة",
+    "status_closed": "مغلقة"
+  },
+  "barcode": {
+    "print_label": "طباعة ملصق الباركود",
+    "qty_labels": "عدد الملصقات"
+  },
+  "price_history": {
+    "title": "سجل الأسعار",
+    "no_history": "لا توجد تغييرات مسجلة",
+    "old_purchase": "سعر الشراء القديم",
+    "new_purchase": "سعر الشراء الجديد",
+    "old_public": "السعر العام القديم",
+    "new_public": "السعر العام الجديد",
+    "changed_by": "بواسطة",
+    "changed_at": "تاريخ التغيير",
+    "reason": "السبب"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "today_sales": "مبيعات اليوم",
+    "today_purchases": "مشتريات اليوم",
+    "today_profit": "إجمالي ربح اليوم",
+    "today_expenses": "مصروفات اليوم",
+    "net_profit": "صافي الربح",
+    "monthly_sales": "المبيعات الشهرية",
+    "low_stock_alert": "{{count}} دواء نقص مخزونه",
+    "expired_alert": "{{count}} دواء منتهي الصلاحية",
+    "near_expiry_alert": "{{count}} دواء قريب الانتهاء",
+    "active_shift": "الوردية الحالية",
+    "no_active_shift": "لا توجد وردية مفتوحة",
+    "pending_payments": "مدفوعات معلقة",
+    "recent_sales": "آخر المبيعات",
+    "top_medicines": "أكثر الأدوية مبيعاً (30 يوم)",
+    "quick_actions": "إجراءات سريعة",
+    "view_all": "عرض الكل ←"
   },
   "layout": {
     "logout": "تسجيل الخروج",

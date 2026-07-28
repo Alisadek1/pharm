@@ -23,6 +23,8 @@ import UsersPage         from './pages/users/UsersPage'
 import SettingsPage      from './pages/settings/SettingsPage'
 import IntegrationPage   from './pages/settings/IntegrationPage'
 import NotificationsPage from './pages/NotificationsPage'
+import ExpensesPage      from './pages/expenses/ExpensesPage'
+import ShiftsPage        from './pages/shifts/ShiftsPage'
 
 function Spinner() {
   return (
@@ -70,6 +72,8 @@ function AppRoutes() {
               <Route path="/settings"      element={<SettingsPage />} />
               <Route path="/integration"   element={<IntegrationPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/expenses"      element={<ExpensesPage />} />
+              <Route path="/shifts"        element={<ShiftsPage />} />
             </Routes>
           </MainLayout>
         </ProtectedRoute>

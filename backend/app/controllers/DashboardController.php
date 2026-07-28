@@ -87,18 +87,47 @@ class DashboardController
         // Unread notifications count
         $notifCount = $db->query("SELECT COUNT(*) FROM notifications WHERE is_read = 0")->fetchColumn();
 
+        // Today's expenses (v3)
+        $todayExpenses = 0;
+        try {
+            $expRow = $db->query("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE expense_date = CURDATE()");
+            $todayExpenses = (float)$expRow->fetchColumn();
+        } catch (Exception $e) {}
+
+        // Net profit = revenue - COGS - expenses
+        $netProfit = round($profit - $todayExpenses, 3);
+
+        // Active shift for current user (v3)
+        $activeShift = null;
+        try {
+            $shiftRow = $db->prepare("SELECT id, opening_cash, opened_at FROM shifts WHERE user_id = ? AND status = 'open' ORDER BY id DESC LIMIT 1");
+            $shiftRow->execute([$user['id']]);
+            $activeShift = $shiftRow->fetch() ?: null;
+        } catch (Exception $e) {}
+
+        // Pending supplier payments
+        $pendingPayments = $db->query("SELECT COALESCE(SUM(due_amount),0) FROM purchases WHERE payment_status IN ('unpaid','partial')")->fetchColumn();
+
+        // Outstanding customer balances
+        $outstandingCustomers = $db->query("SELECT COALESCE(SUM(wallet_balance),0) FROM customers WHERE wallet_balance < 0")->fetchColumn();
+
         Response::success([
-            'today_sales'       => $todaySales,
-            'today_purchases'   => $todayPurchases,
-            'today_profit'      => round($profit, 3),
-            'monthly_sales'     => $monthlySales,
-            'low_stock_count'   => (int)$lowStock,
-            'expired_count'     => (int)$expired,
-            'near_expiry_count' => (int)$nearExpiry,
-            'total_customers'   => (int)$totalCustomers,
-            'total_medicines'   => (int)$totalMedicines,
-            'recent_sales'      => $recentSales,
-            'notifications_count' => (int)$notifCount,
+            'today_sales'           => $todaySales,
+            'today_purchases'       => $todayPurchases,
+            'today_profit'          => round($profit, 3),
+            'today_expenses'        => round($todayExpenses, 3),
+            'net_profit'            => $netProfit,
+            'monthly_sales'         => $monthlySales,
+            'low_stock_count'       => (int)$lowStock,
+            'expired_count'         => (int)$expired,
+            'near_expiry_count'     => (int)$nearExpiry,
+            'total_customers'       => (int)$totalCustomers,
+            'total_medicines'       => (int)$totalMedicines,
+            'recent_sales'          => $recentSales,
+            'notifications_count'   => (int)$notifCount,
+            'active_shift'          => $activeShift,
+            'pending_payments'      => round((float)$pendingPayments, 3),
+            'outstanding_customers' => round((float)$outstandingCustomers, 3),
         ]);
     }
 

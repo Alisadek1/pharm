@@ -108,6 +108,51 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* v3 finance row */}
+      {(st.today_expenses != null || st.active_shift !== undefined) && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+              <ArchiveBoxIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.today_expenses')}</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatCurrency(st.today_expenses || 0)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('dashboard.net_profit')}: <span className={`font-semibold ${(st.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrency(st.net_profit || 0)}</span></p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              st.active_shift ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'
+            }`}>
+              <ClockIcon className={`w-5 h-5 ${st.active_shift ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.active_shift')}</p>
+              {st.active_shift ? (
+                <>
+                  <p className="text-sm font-bold text-green-700 dark:text-green-400">{t('shifts.status_open')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(st.active_shift.opened_at)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">{t('dashboard.no_active_shift')}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+              <ExclamationTriangleIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.pending_payments')}</p>
+              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{formatCurrency(st.pending_payments || 0)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       {charts && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

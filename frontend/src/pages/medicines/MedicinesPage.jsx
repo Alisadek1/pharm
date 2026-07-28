@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, PrinterIcon } from '@heroicons/react/24/outline'
+import JsBarcode from 'jsbarcode'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -7,7 +8,7 @@ import Pagination from '../../components/ui/Pagination'
 import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, stockStatus } from '../../utils/format'
+import { formatCurrency, formatDateTime, stockStatus } from '../../utils/format'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { useTranslation } from 'react-i18next'
@@ -158,6 +159,14 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
       </div>
 
       <div><label className="label">{t('common.description')}</label><textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className="input resize-none" /></div>
+
+      {initial && (
+        <div>
+          <label className="label">{t('medicines.price_change_reason')}</label>
+          <textarea value={form.price_change_reason || ''} onChange={e => set('price_change_reason', e.target.value)}
+            rows={2} placeholder={t('medicines.price_change_reason_hint')} className="input resize-none" />
+        </div>
+      )}
       <div className="flex gap-6">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={!!form.prescription_required} onChange={e => set('prescription_required', e.target.checked)} className="rounded" />
@@ -179,6 +188,223 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading }) {
   )
 }
 
+function BarcodeLabelModal({ medicine, onClose }) {
+  const { t } = useTranslation()
+  const svgRef = useRef(null)
+  const [qty, setQty] = useState(1)
+  const barcodeValue = medicine?.barcode || medicine?.sku || String(medicine?.id || '0000000')
+
+  useEffect(() => {
+    if (svgRef.current && barcodeValue) {
+      try {
+        JsBarcode(svgRef.current, barcodeValue, {
+          format: 'CODE128',
+          width: 1.8,
+          height: 40,
+          displayValue: true,
+          fontSize: 11,
+          margin: 4,
+          background: '#ffffff',
+          lineColor: '#000000',
+        })
+      } catch {}
+    }
+  }, [barcodeValue])
+
+  const handlePrint = () => {
+    const labels = Array.from({ length: qty }, (_, i) => `
+      <div class="label">
+        <div class="name">${medicine.name}${medicine.strength ? ` ${medicine.strength}` : ''}</div>
+        ${medicine.name_ar ? `<div class="name-ar">${medicine.name_ar}</div>` : ''}
+        <div class="barcode-wrap">${svgRef.current?.outerHTML || ''}</div>
+        <div class="price">${medicine.public_price ? `${parseFloat(medicine.public_price).toFixed(3)} KD` : ''}</div>
+      </div>
+    `).join('')
+
+    const w = window.open('', '_blank', 'width=600,height=400')
+    w.document.write(`
+      <!DOCTYPE html><html><head><title>Labels</title>
+      <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        .labels { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+        .label { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; width: 160px; text-align: center; break-inside: avoid; }
+        .name { font-size: 11px; font-weight: bold; line-height: 1.2; margin-bottom: 2px; }
+        .name-ar { font-size: 10px; color: #555; margin-bottom: 2px; direction: rtl; }
+        .barcode-wrap svg { max-width: 100%; height: auto; }
+        .price { font-size: 13px; font-weight: bold; margin-top: 2px; }
+        @media print { @page { margin: 4mm; } }
+      </style></head><body>
+      <div class="labels">${labels}</div>
+      <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+      </body></html>
+    `)
+    w.document.close()
+  }
+
+  if (!medicine) return null
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-center bg-white rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+        <svg ref={svgRef} className="max-w-full" />
+      </div>
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-sm text-center space-y-0.5">
+        <p className="font-bold text-gray-900 dark:text-white">{medicine.name}{medicine.strength ? ` — ${medicine.strength}` : ''}</p>
+        {medicine.name_ar && <p className="text-gray-500 dark:text-gray-400" dir="rtl">{medicine.name_ar}</p>}
+        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">{formatCurrency(medicine.public_price)}</p>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-300">{t('barcode.qty_labels')}</label>
+          <input type="number" min="1" max="100" value={qty} onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+            className="w-20 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">{t('common.cancel')}</button>
+          <button onClick={handlePrint}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+            <PrinterIcon className="w-4 h-4" />
+            {t('common.print')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MedicineViewModal({ medicine }) {
+  const { t } = useTranslation()
+  const { get } = useApi()
+  const [tab, setTab] = useState('details')
+  const [history, setHistory] = useState([])
+  const [histLoading, setHistLoading] = useState(false)
+  const [histMeta, setHistMeta] = useState({ total: 0 })
+
+  const loadHistory = useCallback(() => {
+    if (!medicine?.id) return
+    setHistLoading(true)
+    get(`/api/medicines/${medicine.id}/price-history?per_page=20`)
+      .then(r => { setHistory(r.data || []); setHistMeta(r.meta || {}) })
+      .catch(() => {})
+      .finally(() => setHistLoading(false))
+  }, [medicine?.id]) // get omitted — stable
+
+  useEffect(() => {
+    if (tab === 'history') loadHistory()
+  }, [tab, loadHistory])
+
+  if (!medicine) return null
+
+  const s = stockStatus(medicine.current_stock, medicine.minimum_stock)
+
+  return (
+    <div>
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4 -mt-2">
+        {[
+          { key: 'details', label: t('medicines.tab_details') },
+          { key: 'history', label: t('medicines.tab_price_history'), icon: ClockIcon },
+        ].map(tab_ => (
+          <button key={tab_.key} onClick={() => setTab(tab_.key)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === tab_.key
+                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}>
+            {tab_.icon && <tab_.icon className="w-4 h-4" />}
+            {tab_.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Details tab */}
+      {tab === 'details' && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              [t('medicines.name_en'),            medicine.name],
+              [t('medicines.name_ar'),             medicine.name_ar || '—'],
+              [t('medicines.barcode'),             medicine.barcode || '—'],
+              [t('medicines.sku'),                 medicine.sku || '—'],
+              [t('medicines.category'),            medicine.category_name || '—'],
+              [t('medicines.company'),             medicine.company_name || '—'],
+              [t('medicines.dosage_form'),         medicine.dosage_form || '—'],
+              [t('medicines.strength'),            medicine.strength || '—'],
+            ].map(([label, value]) => (
+              <div key={label} className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('medicines.col_pharmacist_price')}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{formatCurrency(medicine.purchase_price)}</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('medicines.col_public_price')}</p>
+              <p className="text-sm font-semibold text-primary-600 dark:text-primary-400 mt-0.5">{formatCurrency(medicine.public_price)}</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('medicines.col_stock')}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{medicine.current_stock}</span>
+                <span className={`badge badge-${s.color}`}>{s.label}</span>
+              </div>
+            </div>
+          </div>
+          {medicine.description && (
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('common.description')}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{medicine.description}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Price History tab */}
+      {tab === 'history' && (
+        <div>
+          {histLoading ? (
+            <TableSkeleton rows={4} cols={5} />
+          ) : !history.length ? (
+            <p className="text-center text-gray-400 text-sm py-10">{t('price_history.no_history')}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                    {[t('price_history.old_purchase'), t('price_history.new_purchase'), t('price_history.old_public'), t('price_history.new_public'), t('price_history.changed_by'), t('price_history.changed_at'), t('price_history.reason')].map((h, i) => (
+                      <th key={i} className="text-start px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                  {history.map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                      <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatCurrency(row.old_purchase_price)}</td>
+                      <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">{formatCurrency(row.new_purchase_price)}</td>
+                      <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatCurrency(row.old_public_price)}</td>
+                      <td className="px-3 py-2 font-medium text-primary-600 dark:text-primary-400">{formatCurrency(row.new_public_price)}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{row.changed_by_name}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
+                      <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-xs">{row.reason || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {histMeta.total > 20 && (
+                <p className="text-xs text-gray-400 text-center py-2">{t('common.showing_first', { n: 20, total: histMeta.total })}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MedicinesPage() {
   const { t } = useTranslation()
   const { can } = useAuth()
@@ -190,6 +416,8 @@ export default function MedicinesPage() {
   const [companies, setCompanies] = useState([])
   const [modal, setModal] = useState(null)
   const [editItem, setEditItem] = useState(null)
+  const [viewItem, setViewItem] = useState(null)
+  const [labelItem, setLabelItem] = useState(null)
   const [delItem, setDelItem] = useState(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -349,6 +577,12 @@ export default function MedicinesPage() {
                       </td>
                       <td>
                         <div className="flex gap-1">
+                          <button onClick={() => { setViewItem(row); setModal('view') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500">
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => { setLabelItem(row); setModal('label') }} title={t('barcode.print_label')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-purple-500">
+                            <PrinterIcon className="w-4 h-4" />
+                          </button>
                           {can('medicines.edit') && (
                             <button onClick={() => { setEditItem(row); setModal('form') }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-primary-600">
                               <PencilIcon className="w-4 h-4" />
@@ -373,6 +607,15 @@ export default function MedicinesPage() {
         )}
         <Pagination page={pg.page} totalPages={pg.totalPages} total={pg.total} perPage={pg.perPage} onPageChange={pg.setPage} />
       </div>
+
+      <Modal open={modal === 'label'} onClose={() => { setModal(null); setLabelItem(null) }}
+        title={t('barcode.print_label')} size="sm">
+        <BarcodeLabelModal medicine={labelItem} onClose={() => { setModal(null); setLabelItem(null) }} />
+      </Modal>
+
+      <Modal open={modal === 'view'} onClose={() => { setModal(null); setViewItem(null) }} title={viewItem?.name} size="lg">
+        <MedicineViewModal medicine={viewItem} />
+      </Modal>
 
       <Modal open={modal === 'form'} onClose={() => { setModal(null); setEditItem(null) }} title={editItem ? t('medicines.update') : t('medicines.add')} size="xl">
         <MedicineForm initial={editItem} categories={categories} companies={companies} onSubmit={handleSave} loading={saving} />

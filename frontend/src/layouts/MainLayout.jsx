@@ -11,6 +11,7 @@ import {
   BellIcon, ChartBarIcon, UserGroupIcon, Cog6ToothIcon,
   SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon,
   ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, LinkIcon,
+  BanknotesIcon, ClockIcon,
 } from '@heroicons/react/24/outline'
 import { useApi } from '../hooks/useApi'
 
@@ -42,6 +43,9 @@ export default function MainLayout({ children }) {
     { to: '/customers',   labelKey: 'nav.customers',   icon: UsersIcon,                 perm: 'customers.view' },
     { to: '/sales',       labelKey: 'nav.sales',       icon: ClipboardDocumentListIcon, perm: 'sales.view' },
     { to: '/returns',     labelKey: 'nav.returns',     icon: ArrowUturnLeftIcon,        perm: 'returns.view' },
+    { labelKey: 'nav.sections.finance', divider: true },
+    { to: '/expenses',    labelKey: 'nav.expenses',    icon: BanknotesIcon,             perm: 'expenses.view' },
+    { to: '/shifts',      labelKey: 'nav.shifts',      icon: ClockIcon,                 perm: 'shifts.view' },
     { labelKey: 'nav.sections.insights', divider: true },
     { to: '/reports',     labelKey: 'nav.reports',     icon: ChartBarIcon,              perm: 'reports.view' },
     { labelKey: 'nav.sections.admin', divider: true },

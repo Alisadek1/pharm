@@ -211,6 +211,9 @@ class MedicineController
             }
         }
 
+        $newPurchasePrice = (float)$body['purchase_price'];
+        $newPublicPrice   = (float)$body['public_price'];
+
         $db->prepare("
             UPDATE medicines SET
                 category_id=?, company_id=?, name=?, name_ar=?, barcode=?,
@@ -227,9 +230,9 @@ class MedicineController
             trim($body['dosage_form'] ?? $existing['dosage_form']),
             trim($body['strength'] ?? $existing['strength']),
             trim($body['unit'] ?? $existing['unit']),
-            (float)$body['purchase_price'],
-            (float)$body['public_price'],
-            (float)$body['public_price'],
+            $newPurchasePrice,
+            $newPublicPrice,
+            $newPublicPrice,
             (int)$body['minimum_stock'],
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : $existing['prescription_required'],
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : $existing['controlled_drug'],
@@ -238,6 +241,29 @@ class MedicineController
             isset($body['is_active']) ? (int)(bool)$body['is_active'] : $existing['is_active'],
             $id,
         ]);
+
+        // Record price change if prices actually changed
+        $oldPurchasePrice = (float)$existing['purchase_price'];
+        $oldPublicPrice   = (float)$existing['public_price'];
+        if (abs($oldPurchasePrice - $newPurchasePrice) > 0.0001 || abs($oldPublicPrice - $newPublicPrice) > 0.0001) {
+            try {
+                $db->prepare("
+                    INSERT INTO medicine_price_history
+                        (medicine_id, old_purchase_price, new_purchase_price, old_public_price, new_public_price, changed_by, reason)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ")->execute([
+                    $id,
+                    $oldPurchasePrice,
+                    $newPurchasePrice,
+                    $oldPublicPrice,
+                    $newPublicPrice,
+                    $user['id'],
+                    trim($body['price_change_reason'] ?? ''),
+                ]);
+            } catch (Exception $e) {
+                // Table may not exist before migration — silently skip
+            }
+        }
 
         $updated = $this->getById($db, $id);
         Logger::activity($user['id'], 'update', 'medicines', $id, "Updated medicine: {$body['name']}");
@@ -501,6 +527,40 @@ class MedicineController
 
         fclose($out);
         exit;
+    }
+
+    public function priceHistory(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+        AuthMiddleware::require($user, 'medicines.view');
+
+        $id      = (int)$params['id'];
+        $db      = Database::getInstance();
+        $page    = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = min(50, max(10, (int)($_GET['per_page'] ?? 20)));
+
+        $stmt = $db->prepare("SELECT id FROM medicines WHERE id = ?");
+        $stmt->execute([$id]);
+        if (!$stmt->fetch()) {
+            Response::notFound('Medicine not found');
+        }
+
+        $total = $db->prepare("SELECT COUNT(*) FROM medicine_price_history WHERE medicine_id = ?");
+        $total->execute([$id]);
+        $total = (int)$total->fetchColumn();
+
+        $offset = ($page - 1) * $perPage;
+        $rows   = $db->prepare("
+            SELECT mph.*, u.name AS changed_by_name
+            FROM medicine_price_history mph
+            LEFT JOIN users u ON u.id = mph.changed_by
+            WHERE mph.medicine_id = ?
+            ORDER BY mph.changed_at DESC
+            LIMIT ? OFFSET ?
+        ");
+        $rows->execute([$id, $perPage, $offset]);
+
+        Response::paginated($rows->fetchAll(), $total, $page, $perPage);
     }
 
     public function purchaseLines(array $params): void
