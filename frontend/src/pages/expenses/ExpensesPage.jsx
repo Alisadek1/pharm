@@ -381,14 +381,14 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      <Modal isOpen={showForm} onClose={() => setShowForm(false)}
+      <Modal open={showForm} onClose={() => setShowForm(false)}
         title={editing ? t('expenses.edit') : t('expenses.add')} size="md">
         <ExpenseForm categories={categories} initial={editing}
           onSave={() => { setShowForm(false); setEditing(null); load(); loadSummary() }}
           onClose={() => { setShowForm(false); setEditing(null) }} />
       </Modal>
 
-      <Modal isOpen={showCats} onClose={() => setShowCats(false)}
+      <Modal open={showCats} onClose={() => setShowCats(false)}
         title={t('expenses.manage_categories')} size="md">
         <CategoryModal onClose={() => setShowCats(false)} onSaved={loadCategories} />
       </Modal>

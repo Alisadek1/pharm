@@ -226,7 +226,7 @@ export default function ShiftsPage() {
       </div>
 
       {/* Open shift modal */}
-      <Modal isOpen={showOpen} onClose={() => setShowOpen(false)} title={t('shifts.open_shift')} size="sm">
+      <Modal open={showOpen} onClose={() => setShowOpen(false)} title={t('shifts.open_shift')} size="sm">
         <form onSubmit={handleOpen} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('shifts.opening_cash')}</label>
@@ -251,7 +251,7 @@ export default function ShiftsPage() {
       </Modal>
 
       {/* Close shift modal */}
-      <Modal isOpen={showClose} onClose={() => setShowClose(false)} title={t('shifts.close_shift')} size="sm">
+      <Modal open={showClose} onClose={() => setShowClose(false)} title={t('shifts.close_shift')} size="sm">
         {current && (
           <form onSubmit={handleClose} className="space-y-4">
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2 text-sm">
@@ -288,7 +288,7 @@ export default function ShiftsPage() {
       </Modal>
 
       {/* View shift modal */}
-      <Modal isOpen={!!viewShift} onClose={() => setViewShift(null)} title={`${t('shifts.shift')} #${viewShift?.id}`} size="md">
+      <Modal open={!!viewShift} onClose={() => setViewShift(null)} title={`${t('shifts.shift')} #${viewShift?.id}`} size="md">
         <ShiftDetail shift={viewShift} />
       </Modal>
     </div>

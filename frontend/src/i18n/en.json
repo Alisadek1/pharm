@@ -927,7 +927,10 @@
     "closing_notes": "Closing Notes",
     "expenses_list": "Expenses in this shift",
     "status_open": "Open",
-    "status_closed": "Closed"
+    "status_closed": "Closed",
+    "sales_total": "Sales Total",
+    "net": "Net",
+    "shift": "Shift"
   },
   "barcode": {
     "print_label": "Print Barcode Label",
