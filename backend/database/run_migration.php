@@ -107,9 +107,14 @@ $perms = [
     ['shifts.view',     'View Shifts'],
     ['shifts.manage',   'Open & Close Shifts'],
 ];
-$insPerm = $pdo->prepare("INSERT IGNORE INTO permissions (name, description) VALUES (?, ?)");
-foreach ($perms as [$name_, $desc]) {
-    $insPerm->execute([$name_, $desc]);
+// Check if description column exists
+$cols = array_column($pdo->query("SHOW COLUMNS FROM permissions")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+if (in_array('description', $cols)) {
+    $insPerm = $pdo->prepare("INSERT IGNORE INTO permissions (name, description) VALUES (?, ?)");
+    foreach ($perms as [$name_, $desc]) { $insPerm->execute([$name_, $desc]); }
+} else {
+    $insPerm = $pdo->prepare("INSERT IGNORE INTO permissions (name) VALUES (?)");
+    foreach ($perms as [$name_, $desc]) { $insPerm->execute([$name_]); }
 }
 echo "  OK: seeded permissions\n";
 
