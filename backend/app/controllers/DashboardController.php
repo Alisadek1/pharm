@@ -106,10 +106,16 @@ class DashboardController
         } catch (Exception $e) {}
 
         // Pending supplier payments
-        $pendingPayments = $db->query("SELECT COALESCE(SUM(due_amount),0) FROM purchases WHERE payment_status IN ('unpaid','partial')")->fetchColumn();
+        $pendingPayments = 0;
+        try {
+            $pendingPayments = $db->query("SELECT COALESCE(SUM(due_amount),0) FROM purchases WHERE payment_status IN ('unpaid','partial')")->fetchColumn();
+        } catch (Exception $e) {}
 
-        // Outstanding customer balances
-        $outstandingCustomers = $db->query("SELECT COALESCE(SUM(wallet_balance),0) FROM customers WHERE wallet_balance < 0")->fetchColumn();
+        // Outstanding customer balances (balance < 0 means customer owes money)
+        $outstandingCustomers = 0;
+        try {
+            $outstandingCustomers = $db->query("SELECT COALESCE(SUM(balance),0) FROM customers WHERE balance < 0")->fetchColumn();
+        } catch (Exception $e) {}
 
         Response::success([
             'today_sales'           => $todaySales,
