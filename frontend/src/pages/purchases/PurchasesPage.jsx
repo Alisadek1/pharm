@@ -496,7 +496,6 @@ export default function PurchasesPage() {
                 <thead>
                   <tr>
                     <th>{t('purchases.medicine')}</th>
-                    <th>{t('purchases.batch')}</th>
                     <th>{t('purchases.expiry')}</th>
                     <th>{t('purchases.qty')}</th>
                     <th>{t('purchases.pharmacist_price')}</th>
@@ -509,7 +508,6 @@ export default function PurchasesPage() {
                   {(viewItem.items || []).map((it, i) => (
                     <tr key={i}>
                       <td className="font-medium">{it.medicine_name}</td>
-                      <td className="font-mono text-xs">{it.batch_number || '—'}</td>
                       <td>{formatDate(it.expiry_date)}</td>
                       <td>{it.quantity}</td>
                       <td>{formatCurrency(it.purchase_price)}</td>
