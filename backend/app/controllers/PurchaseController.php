@@ -42,12 +42,14 @@ class PurchaseController
         }
 
         if ($search !== '') {
-            $where[] = 'p.invoice_number LIKE ?';
+            $where[] = '(p.invoice_number LIKE ? OR s.name LIKE ? OR p.purchase_date LIKE ?)';
+            $binds[] = "%{$search}%";
+            $binds[] = "%{$search}%";
             $binds[] = "%{$search}%";
         }
 
         $whereStr = implode(' AND ', $where);
-        $total    = $db->prepare("SELECT COUNT(*) FROM purchases p WHERE {$whereStr}");
+        $total    = $db->prepare("SELECT COUNT(*) FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE {$whereStr}");
         $total->execute($binds);
         $total = (int)$total->fetchColumn();
 
