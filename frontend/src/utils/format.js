@@ -9,6 +9,7 @@ export const formatCurrency = (amount, abbreviated = false) => {
     if (Math.abs(num) >= 1000) return `${(num / 1000).toFixed(1)}K`
     return num.toFixed(0)
   }
+  if (num < 0) return `-ر.س ${Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return `ر.س ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 

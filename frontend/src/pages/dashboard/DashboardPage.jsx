@@ -148,6 +148,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.pending_payments')}</p>
               <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{formatCurrency(st.pending_payments || 0)}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('dashboard.pending_payments_hint')}</p>
             </div>
           </div>
         </div>
