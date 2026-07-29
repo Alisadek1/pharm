@@ -47,9 +47,10 @@ class ShiftController
 
         $offset = ($page - 1) * $perPage;
         $stmt   = $db->prepare("
-            SELECT s.*, u.name AS user_name
+            SELECT s.*, u.name AS opened_by_name, ub.name AS closed_by_name
             FROM shifts s
-            LEFT JOIN users u ON u.id = s.user_id
+            LEFT JOIN users u  ON u.id  = s.user_id
+            LEFT JOIN users ub ON ub.id = s.closed_by
             WHERE {$whereStr}
             ORDER BY s.opened_at DESC
             LIMIT ? OFFSET ?
@@ -66,7 +67,7 @@ class ShiftController
 
         $db   = Database::getInstance();
         $stmt = $db->prepare("
-            SELECT s.*, u.name AS user_name
+            SELECT s.*, u.name AS opened_by_name
             FROM shifts s
             LEFT JOIN users u ON u.id = s.user_id
             WHERE s.user_id = ? AND s.status = 'open'
@@ -108,13 +109,13 @@ class ShiftController
         }
 
         $stmt = $db->prepare("
-            INSERT INTO shifts (user_id, opening_cash, opening_notes, status)
+            INSERT INTO shifts (user_id, opening_cash, notes, status)
             VALUES (?, ?, ?, 'open')
         ");
         $stmt->execute([
             $user['id'],
             (float)($body['opening_cash'] ?? 0),
-            trim($body['opening_notes'] ?? ''),
+            trim($body['notes'] ?? ''),
         ]);
 
         $id    = (int)$db->lastInsertId();
@@ -148,35 +149,27 @@ class ShiftController
         }
 
         // Recompute sales totals from actual sales records
-        $sales = $db->prepare("
-            SELECT
-                COALESCE(SUM(CASE WHEN payment_method = 'cash'   AND status = 'completed' THEN total ELSE 0 END), 0) AS cash_sales,
-                COALESCE(SUM(CASE WHEN payment_method IN ('visa','card') AND status = 'completed' THEN total ELSE 0 END), 0) AS card_sales,
-                COALESCE(SUM(CASE WHEN payment_method = 'wallet' AND status = 'completed' THEN total ELSE 0 END), 0) AS wallet_sales,
-                COALESCE(SUM(CASE WHEN status = 'refunded' THEN total ELSE 0 END), 0) AS refunds_total
-            FROM sales WHERE shift_id = ?
+        $salesRow = $db->prepare("
+            SELECT COALESCE(SUM(total), 0) AS sales_total
+            FROM sales WHERE shift_id = ? AND status = 'completed'
         ");
-        $sales->execute([$id]);
-        $s = $sales->fetch();
+        $salesRow->execute([$id]);
+        $salesTotal = (float)$salesRow->fetchColumn();
 
         $db->prepare("
             UPDATE shifts SET
                 closing_cash  = ?,
-                closing_notes = ?,
-                cash_sales    = ?,
-                card_sales    = ?,
-                wallet_sales  = ?,
-                refunds_total = ?,
+                notes         = ?,
+                sales_total   = ?,
                 status        = 'closed',
-                closed_at     = NOW()
+                closed_at     = NOW(),
+                closed_by     = ?
             WHERE id = ?
         ")->execute([
             (float)($body['closing_cash'] ?? 0),
-            trim($body['closing_notes'] ?? ''),
-            (float)$s['cash_sales'],
-            (float)$s['card_sales'],
-            (float)$s['wallet_sales'],
-            (float)$s['refunds_total'],
+            trim($body['notes'] ?? ''),
+            $salesTotal,
+            $user['id'],
             $id,
         ]);
 
@@ -221,9 +214,10 @@ class ShiftController
     private function getById(PDO $db, int $id): ?array
     {
         $stmt = $db->prepare("
-            SELECT s.*, u.name AS user_name
+            SELECT s.*, u.name AS opened_by_name, ub.name AS closed_by_name
             FROM shifts s
-            LEFT JOIN users u ON u.id = s.user_id
+            LEFT JOIN users u  ON u.id  = s.user_id
+            LEFT JOIN users ub ON ub.id = s.closed_by
             WHERE s.id = ?
         ");
         $stmt->execute([$id]);

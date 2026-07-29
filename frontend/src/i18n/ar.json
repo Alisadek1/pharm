@@ -1031,7 +1031,9 @@
     "status_closed": "مغلقة",
     "sales_total": "إجمالي المبيعات",
     "net": "الصافي",
-    "shift": "وردية"
+    "shift": "وردية",
+    "opened_success": "تم فتح الوردية بنجاح",
+    "closed_success": "تم إغلاق الوردية بنجاح"
   },
   "barcode": {
     "print_label": "طباعة ملصق الباركود",

@@ -930,7 +930,9 @@
     "status_closed": "Closed",
     "sales_total": "Sales Total",
     "net": "Net",
-    "shift": "Shift"
+    "shift": "Shift",
+    "opened_success": "Shift opened successfully",
+    "closed_success": "Shift closed successfully"
   },
   "barcode": {
     "print_label": "Print Barcode Label",
