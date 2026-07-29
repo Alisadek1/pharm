@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  PlusIcon, PencilIcon, TrashIcon,
+  PlusIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon,
   BanknotesIcon, ChartPieIcon, TagIcon,
 } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
@@ -103,13 +103,15 @@ function ExpenseForm({ categories, initial, onSave, onClose }) {
 
 function CategoryModal({ onClose, onSaved }) {
   const { t } = useTranslation()
-  const { get, post, put, loading } = useApi()
-  const [cats, setCats] = useState([])
-  const [form, setForm] = useState({ name: '', name_ar: '', editing: null })
+  const { get, post, put, del, loading } = useApi()
+  const [cats, setCats]       = useState([])
+  const [form, setForm]       = useState({ name: '', name_ar: '', editing: null })
+  const [confirmDel, setConfirmDel] = useState(null) // cat to delete
+  const [deleting, setDeleting]     = useState(false)
 
   const loadCats = useCallback(() => {
     get('/api/expense-categories').then(r => setCats(r.data || [])).catch(() => {})
-  }, []) // get is stable via request memoization
+  }, [])
 
   useEffect(() => { loadCats() }, [loadCats])
 
@@ -128,43 +130,108 @@ function CategoryModal({ onClose, onSaved }) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirmDel) return
+    setDeleting(true)
+    const res = await del(`/api/expense-categories/${confirmDel.id}`, { silent: true })
+      .catch(err => ({ ok: false, _err: err }))
+    setDeleting(false)
+    if (res?.ok !== false && !res?._err) {
+      toast.success(t('expenses.category_deleted'))
+      setConfirmDel(null)
+      loadCats()
+      onSaved()
+    }
+  }
+
+  const startEdit = (c) => {
+    setConfirmDel(null)
+    setForm({ name: c.name, name_ar: c.name_ar || '', editing: c.id })
+  }
+
+  const cancelEdit = () => setForm({ name: '', name_ar: '', editing: null })
+
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('expenses.category_name_en')} required
-          className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
-        <input value={form.name_ar} onChange={e => setForm(f => ({ ...f, name_ar: e.target.value }))} placeholder={t('expenses.category_name_ar')} dir="rtl"
-          className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
-        <button type="submit" disabled={loading}
-          className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
-          {form.editing ? t('common.save') : t('common.add')}
-        </button>
-        {form.editing && (
-          <button type="button" onClick={() => setForm({ name: '', name_ar: '', editing: null })}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm">
-            {t('common.cancel')}
+      {/* Add / edit form */}
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <div className="flex gap-2">
+          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder={t('expenses.category_name_en')} required
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+          <input value={form.name_ar} onChange={e => setForm(f => ({ ...f, name_ar: e.target.value }))}
+            placeholder={t('expenses.category_name_ar')}
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 text-right" />
+        </div>
+        <div className="flex justify-end gap-2">
+          {form.editing && (
+            <button type="button" onClick={cancelEdit}
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+              {t('common.cancel')}
+            </button>
+          )}
+          <button type="submit" disabled={loading}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            {form.editing ? <><CheckIcon className="w-3.5 h-3.5" />{t('common.save')}</> : <><PlusIcon className="w-3.5 h-3.5" />{t('common.add')}</>}
           </button>
-        )}
+        </div>
       </form>
 
-      <div className="space-y-1 max-h-64 overflow-y-auto">
+      <div className="border-t border-gray-100 dark:border-gray-700" />
+
+      {/* Category list */}
+      <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+        {cats.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4">{t('common.no_data')}</p>
+        )}
         {cats.map(c => (
-          <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-            <div>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</span>
-              {c.name_ar && <span className="ms-2 text-sm text-gray-500 dark:text-gray-400" dir="rtl">{c.name_ar}</span>}
+          <div key={c.id}
+            className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
+              form.editing === c.id
+                ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-700'
+                : confirmDel?.id === c.id
+                ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700'
+                : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50'
+            }`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+              {c.name_ar && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.name_ar}</p>}
             </div>
-            <button onClick={() => setForm({ name: c.name, name_ar: c.name_ar || '', editing: c.id })}
-              className="p-1.5 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
-              <PencilIcon className="w-4 h-4" />
-            </button>
+
+            {/* Inline delete confirmation */}
+            {confirmDel?.id === c.id ? (
+              <div className="flex items-center gap-1 ms-2 shrink-0">
+                <span className="text-xs text-red-600 dark:text-red-400 me-1">{t('common.confirm')}?</span>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+                  <CheckIcon className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setConfirmDel(null)} disabled={deleting}
+                  className="p-1.5 border border-gray-300 dark:border-gray-600 text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <XMarkIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 ms-2 shrink-0">
+                <button onClick={() => startEdit(c)} title={t('common.edit')}
+                  className="p-1.5 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                  <PencilIcon className="w-4 h-4" />
+                </button>
+                <button onClick={() => { cancelEdit(); setConfirmDel(c) }} title={t('common.delete')}
+                  className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end border-t border-gray-100 dark:border-gray-700 pt-3">
         <button onClick={onClose}
-          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">{t('common.close')}</button>
+          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+          {t('common.close')}
+        </button>
       </div>
     </div>
   )

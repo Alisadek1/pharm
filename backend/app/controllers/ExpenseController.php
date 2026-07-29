@@ -284,6 +284,24 @@ class ExpenseController
         Response::created($cat, 'Category created');
     }
 
+    public function deleteCategory(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+        AuthMiddleware::require($user, 'expenses.edit');
+
+        $id = (int)$params['id'];
+        $db = Database::getInstance();
+
+        $inUse = $db->prepare("SELECT COUNT(*) FROM expenses WHERE category_id = ?");
+        $inUse->execute([$id]);
+        if ((int)$inUse->fetchColumn() > 0) {
+            Response::error('Cannot delete: category has linked expenses', 409);
+        }
+
+        $db->prepare("DELETE FROM expense_categories WHERE id = ?")->execute([$id]);
+        Response::success(null, 'Category deleted');
+    }
+
     public function updateCategory(array $params): void
     {
         $user = AuthMiddleware::handle();

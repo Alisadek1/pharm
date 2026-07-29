@@ -211,6 +211,7 @@ $router->group('/api/expense-categories', function (Router $r) {
     $r->get('/',            [ExpenseController::class, 'categories']);
     $r->post('/',           [ExpenseController::class, 'storeCategory']);
     $r->put('/{id}',        [ExpenseController::class, 'updateCategory']);
+    $r->delete('/{id}',     [ExpenseController::class, 'deleteCategory']);
 });
 
 // Shifts (v3)

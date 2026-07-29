@@ -988,6 +988,7 @@
     "manage_categories": "إدارة الفئات",
     "category_name_en": "اسم الفئة (EN)",
     "category_name_ar": "اسم الفئة (AR)",
+    "category_deleted": "تم حذف الفئة",
     "select_category": "اختر فئة...",
     "amount": "المبلغ",
     "payment_method": "طريقة الدفع",

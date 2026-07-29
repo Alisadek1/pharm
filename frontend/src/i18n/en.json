@@ -887,6 +887,7 @@
     "manage_categories": "Manage Categories",
     "category_name_en": "Category name (EN)",
     "category_name_ar": "Category name (AR)",
+    "category_deleted": "Category deleted",
     "select_category": "Select category...",
     "amount": "Amount",
     "payment_method": "Payment Method",
