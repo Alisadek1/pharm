@@ -133,14 +133,17 @@ function CategoryModal({ onClose, onSaved }) {
   const handleDelete = async () => {
     if (!confirmDel) return
     setDeleting(true)
-    const res = await del(`/api/expense-categories/${confirmDel.id}`, { silent: true })
-      .catch(err => ({ ok: false, _err: err }))
-    setDeleting(false)
-    if (res?.ok !== false && !res?._err) {
+    try {
+      await del(`/api/expense-categories/${confirmDel.id}`)
       toast.success(t('expenses.category_deleted'))
       setConfirmDel(null)
       loadCats()
       onSaved()
+    } catch {
+      // useApi already showed the error toast; just close confirmation
+      setConfirmDel(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
