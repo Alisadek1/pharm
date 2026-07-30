@@ -366,12 +366,15 @@ export default function DashboardPage() {
   const [shiftReport, setShiftReport]     = useState(null)
 
   useEffect(() => {
-    if (!isFullDashboard) return
-    setFullLoading(true)
-    Promise.all([get('/api/dashboard'), get('/api/dashboard/charts')])
-      .then(([d, c]) => { setData(d.data); setCharts(c.data) })
-      .finally(() => setFullLoading(false))
-  }, [isFullDashboard])
+    if (isFullDashboard) {
+      setFullLoading(true)
+      Promise.all([get('/api/dashboard'), get('/api/dashboard/charts')])
+        .then(([d, c]) => { setData(d.data); setCharts(c.data) })
+        .finally(() => setFullLoading(false))
+    } else {
+      refreshShift()
+    }
+  }, [isFullDashboard]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCloseShift = async (e) => {
     e.preventDefault()
