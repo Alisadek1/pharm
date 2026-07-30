@@ -268,7 +268,7 @@ class SupplierController
 
         // Purchases in period
         $stmt = $db->prepare("
-            SELECT p.id, p.invoice_number, p.total_amount, p.paid_amount, p.due_amount,
+            SELECT p.id, p.invoice_number, p.total, p.paid_amount, p.due_amount,
                    p.payment_method, p.status, p.purchase_date, u.name AS created_by_name
             FROM purchases p
             LEFT JOIN users u ON u.id = p.user_id
@@ -280,9 +280,9 @@ class SupplierController
 
         // Totals
         $totStmt = $db->prepare("
-            SELECT COALESCE(SUM(total_amount), 0) AS total_invoiced,
-                   COALESCE(SUM(paid_amount), 0)  AS total_paid,
-                   COALESCE(SUM(due_amount), 0)   AS total_outstanding
+            SELECT COALESCE(SUM(total), 0)       AS total_invoiced,
+                   COALESCE(SUM(paid_amount), 0) AS total_paid,
+                   COALESCE(SUM(due_amount), 0)  AS total_outstanding
             FROM purchases
             WHERE supplier_id = ? AND DATE(purchase_date) BETWEEN ? AND ?
         ");
