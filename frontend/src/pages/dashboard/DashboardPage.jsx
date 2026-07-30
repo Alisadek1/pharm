@@ -355,7 +355,7 @@ export default function DashboardPage() {
   const { user, can }                     = useAuth()
   const { activeShift, refreshShift }     = useShift()
   const { get }                           = useApi()
-  const isFullDashboard                   = can('reports.view')
+  const isFullDashboard                   = can('reports.view') || user?.role_name === 'owner' || user?.role_name === 'admin'
 
   const [data, setData]                   = useState(null)
   const [charts, setCharts]               = useState(null)
