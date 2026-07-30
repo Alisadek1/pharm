@@ -37,15 +37,17 @@ CREATE TABLE IF NOT EXISTS `shifts` (
   `wallet_sales` DECIMAL(12,3) NOT NULL DEFAULT 0.000,
   `refunds_total` DECIMAL(12,3) NOT NULL DEFAULT 0.000,
   `expenses_total` DECIMAL(12,3) NOT NULL DEFAULT 0.000,
-  `opening_notes` TEXT DEFAULT NULL,
-  `closing_notes` TEXT DEFAULT NULL,
+  `notes` TEXT DEFAULT NULL,
+  `sales_total` DECIMAL(12,3) NOT NULL DEFAULT 0.000,
   `status` ENUM('open','closed') NOT NULL DEFAULT 'open',
   `opened_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `closed_at` TIMESTAMP NULL DEFAULT NULL,
+  `closed_by` INT UNSIGNED DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_shifts_user` (`user_id`),
   KEY `idx_shifts_status` (`status`),
-  CONSTRAINT `fk_shifts_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+  CONSTRAINT `fk_shifts_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
+  CONSTRAINT `fk_shifts_closed_by` FOREIGN KEY (`closed_by`) REFERENCES `users`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
