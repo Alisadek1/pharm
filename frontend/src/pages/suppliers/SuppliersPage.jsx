@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon, BanknotesIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon, BanknotesIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -149,12 +149,6 @@ export default function SuppliersPage() {
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [deletingPayment, setDeletingPayment] = useState(null)
   const [quickPaySupplier, setQuickPaySupplier] = useState(null)
-  const [stmtItem, setStmtItem] = useState(null)
-  const [stmtData, setStmtData] = useState(null)
-  const [stmtLoading, setStmtLoading] = useState(false)
-  const [stmtFrom, setStmtFrom] = useState(new Date().toISOString().slice(0, 8) + '01')
-  const [stmtTo, setStmtTo] = useState(new Date().toISOString().slice(0, 10))
-
   const load = useCallback(() => {
     get('/api/suppliers', { page: pg.page, per_page: pg.perPage, search }).then(res => {
       setRows(res.data || [])
@@ -163,19 +157,6 @@ export default function SuppliersPage() {
   }, [pg.page, pg.perPage, search])
 
   useEffect(() => { load() }, [load])
-
-  const loadStatement = useCallback(async () => {
-    if (!stmtItem) return
-    setStmtLoading(true)
-    get(`/api/suppliers/${stmtItem.id}/statement?date_from=${stmtFrom}&date_to=${stmtTo}`)
-      .then(r => setStmtData(r.data))
-      .catch(() => toast.error(t('common.error')))
-      .finally(() => setStmtLoading(false))
-  }, [stmtItem?.id, stmtFrom, stmtTo]) // get omitted — stable
-
-  useEffect(() => {
-    if (stmtItem) loadStatement()
-  }, [stmtItem, stmtFrom, stmtTo, loadStatement])
 
   const loadPayments = async (id) => {
     const res = await get(`/api/suppliers/${id}/payments`, { per_page: 20 })
@@ -290,9 +271,6 @@ export default function SuppliersPage() {
                       <div className="flex gap-1">
                         <button onClick={() => openView(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500" title={t('common.actions')}>
                           <EyeIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => setStmtItem(row)} title={t('suppliers.statement')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-500">
-                          <DocumentTextIcon className="w-4 h-4" />
                         </button>
                         {can('suppliers.edit') && (
                           <button onClick={() => setQuickPaySupplier(row)} title={t('suppliers.add_payment')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-green-600">
@@ -472,73 +450,6 @@ export default function SuppliersPage() {
             )}
           </div>
         )}
-      </Modal>
-
-      <Modal open={!!stmtItem} onClose={() => { setStmtItem(null); setStmtData(null) }}
-        title={`${t('suppliers.statement')}: ${stmtItem?.name}`} size="xl">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3 bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t('common.from')}</label>
-              <input type="date" value={stmtFrom} onChange={e => setStmtFrom(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t('common.to')}</label>
-              <input type="date" value={stmtTo} onChange={e => setStmtTo(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-            </div>
-          </div>
-
-          {stmtData && (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                [t('customers.stmt_invoiced'), stmtData.totals?.total_invoiced, 'text-gray-900 dark:text-white'],
-                [t('customers.stmt_paid'),     stmtData.totals?.total_paid,     'text-green-600 dark:text-green-400'],
-                [t('customers.stmt_due'),      stmtData.totals?.total_outstanding, 'text-red-600 dark:text-red-400'],
-              ].map(([label, val, cls]) => (
-                <div key={label} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                  <p className={`text-base font-bold mt-0.5 ${cls}`}>{formatCurrency(val)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {stmtLoading ? (
-            <div className="py-8 text-center text-gray-400 text-sm">{t('common.loading')}</div>
-          ) : stmtData?.purchases?.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                    {[t('purchases.col_invoice'), t('common.date'), t('common.total'), t('customers.stmt_paid'), t('customers.stmt_due'), t('common.status')].map((h, i) => (
-                      <th key={i} className="text-start px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                  {stmtData.purchases.map(p => (
-                    <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                      <td className="px-3 py-2 font-mono text-xs text-primary-600 dark:text-primary-400">{p.invoice_number || `#${p.id}`}</td>
-                      <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatDate(p.purchase_date)}</td>
-                      <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white">{formatCurrency(p.total)}</td>
-                      <td className="px-3 py-2 text-green-600 dark:text-green-400">{formatCurrency(p.paid_amount)}</td>
-                      <td className="px-3 py-2 text-red-500 dark:text-red-400">{parseFloat(p.due_amount) > 0 ? formatCurrency(p.due_amount) : '—'}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          p.status === 'received' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        }`}>{t(`status.${p.status}`) || p.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : stmtData ? (
-            <p className="text-center text-gray-400 text-sm py-8">{t('common.no_data')}</p>
-          ) : null}
-        </div>
       </Modal>
 
       <ConfirmDialog
