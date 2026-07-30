@@ -105,10 +105,10 @@ class DashboardController
             $activeShift = $shiftRow->fetch() ?: null;
         } catch (Exception $e) {}
 
-        // Pending supplier payments
+        // Pending supplier payments — use suppliers.balance (updated by payments)
         $pendingPayments = 0;
         try {
-            $pendingPayments = $db->query("SELECT COALESCE(SUM(due_amount),0) FROM purchases WHERE payment_status IN ('unpaid','partial')")->fetchColumn();
+            $pendingPayments = $db->query("SELECT COALESCE(SUM(balance),0) FROM suppliers WHERE balance > 0")->fetchColumn();
         } catch (Exception $e) {}
 
         // Outstanding customer balances (balance < 0 means customer owes money)

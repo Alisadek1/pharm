@@ -313,8 +313,9 @@ class PurchaseController
         }
 
         // Only allow editing notes, paid_amount, status
-        $paid = (float)($body['paid_amount'] ?? $purchase['paid_amount']);
-        $due  = max(0, (float)$purchase['total'] - $paid);
+        $oldDue = (float)$purchase['due_amount'];
+        $paid   = (float)($body['paid_amount'] ?? $purchase['paid_amount']);
+        $due    = max(0, (float)$purchase['total'] - $paid);
 
         $db->prepare("
             UPDATE purchases SET notes=?, paid_amount=?, due_amount=?,
@@ -328,6 +329,13 @@ class PurchaseController
             $body['status'] ?? $purchase['status'],
             $id,
         ]);
+
+        // Sync supplier balance: adjust by the change in due_amount
+        $dueDelta = round($due - $oldDue, 3);
+        if ($dueDelta !== 0.0 && !empty($purchase['supplier_id'])) {
+            $db->prepare("UPDATE suppliers SET balance = GREATEST(0, balance + ?) WHERE id = ?")
+               ->execute([$dueDelta, (int)$purchase['supplier_id']]);
+        }
 
         $updated = $this->getById($db, $id);
         Logger::activity($user['id'], 'update', 'purchases', $id, "Updated purchase #{$id}");
@@ -352,6 +360,13 @@ class PurchaseController
         }
 
         $db->prepare("DELETE FROM purchases WHERE id = ?")->execute([$id]);
+
+        // Reverse supplier balance for the unpaid portion that's being removed
+        if (!empty($purchase['supplier_id']) && (float)$purchase['due_amount'] > 0) {
+            $db->prepare("UPDATE suppliers SET balance = GREATEST(0, balance - ?) WHERE id = ?")
+               ->execute([round((float)$purchase['due_amount'], 3), (int)$purchase['supplier_id']]);
+        }
+
         Logger::activity($user['id'], 'delete', 'purchases', $id, "Deleted purchase #{$id}");
         Response::success(null, 'Purchase deleted successfully');
     }
