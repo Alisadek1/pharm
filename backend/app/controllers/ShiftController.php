@@ -47,10 +47,9 @@ class ShiftController
 
         $offset = ($page - 1) * $perPage;
         $stmt   = $db->prepare("
-            SELECT s.*, u.name AS opened_by_name, ub.name AS closed_by_name
+            SELECT s.*, u.name AS opened_by_name
             FROM shifts s
-            LEFT JOIN users u  ON u.id  = s.user_id
-            LEFT JOIN users ub ON ub.id = s.closed_by
+            LEFT JOIN users u ON u.id = s.user_id
             WHERE {$whereStr}
             ORDER BY s.opened_at DESC
             LIMIT ? OFFSET ?
@@ -122,7 +121,7 @@ class ShiftController
         }
 
         $stmt = $db->prepare("
-            INSERT INTO shifts (user_id, opening_cash, notes, status)
+            INSERT INTO shifts (user_id, opening_cash, opening_notes, status)
             VALUES (?, ?, ?, 'open')
         ");
         $stmt->execute([
@@ -161,28 +160,16 @@ class ShiftController
             AuthMiddleware::require($user, 'shifts.manage');
         }
 
-        // Recompute sales totals from actual sales records
-        $salesRow = $db->prepare("
-            SELECT COALESCE(SUM(total), 0) AS sales_total
-            FROM sales WHERE shift_id = ? AND status = 'completed'
-        ");
-        $salesRow->execute([$id]);
-        $salesTotal = (float)$salesRow->fetchColumn();
-
         $db->prepare("
             UPDATE shifts SET
                 closing_cash  = ?,
-                notes         = ?,
-                sales_total   = ?,
+                closing_notes = ?,
                 status        = 'closed',
-                closed_at     = NOW(),
-                closed_by     = ?
+                closed_at     = NOW()
             WHERE id = ?
         ")->execute([
             (float)($body['closing_cash'] ?? 0),
             trim($body['notes'] ?? ''),
-            $salesTotal,
-            $user['id'],
             $id,
         ]);
 
@@ -227,10 +214,9 @@ class ShiftController
     private function getById(PDO $db, int $id): ?array
     {
         $stmt = $db->prepare("
-            SELECT s.*, u.name AS opened_by_name, ub.name AS closed_by_name
+            SELECT s.*, u.name AS opened_by_name
             FROM shifts s
-            LEFT JOIN users u  ON u.id  = s.user_id
-            LEFT JOIN users ub ON ub.id = s.closed_by
+            LEFT JOIN users u ON u.id = s.user_id
             WHERE s.id = ?
         ");
         $stmt->execute([$id]);
