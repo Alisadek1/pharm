@@ -169,7 +169,7 @@ export default function SuppliersPage() {
     setStmtLoading(true)
     get(`/api/suppliers/${stmtItem.id}/statement?date_from=${stmtFrom}&date_to=${stmtTo}`)
       .then(r => setStmtData(r.data))
-      .catch(() => {})
+      .catch(() => toast.error(t('common.error')))
       .finally(() => setStmtLoading(false))
   }, [stmtItem?.id, stmtFrom, stmtTo]) // get omitted — stable
 
@@ -522,7 +522,7 @@ export default function SuppliersPage() {
                     <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                       <td className="px-3 py-2 font-mono text-xs text-primary-600 dark:text-primary-400">{p.invoice_number || `#${p.id}`}</td>
                       <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatDate(p.purchase_date)}</td>
-                      <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white">{formatCurrency(p.total_amount)}</td>
+                      <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white">{formatCurrency(p.total)}</td>
                       <td className="px-3 py-2 text-green-600 dark:text-green-400">{formatCurrency(p.paid_amount)}</td>
                       <td className="px-3 py-2 text-red-500 dark:text-red-400">{parseFloat(p.due_amount) > 0 ? formatCurrency(p.due_amount) : '—'}</td>
                       <td className="px-3 py-2">
