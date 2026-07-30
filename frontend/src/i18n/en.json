@@ -906,7 +906,15 @@
     "closed_success": "Shift closed successfully",
     "gate_title": "Open Your Shift",
     "gate_subtitle": "A shift must be open before you can use the system. Please enter your opening cash to begin.",
-    "open_failed": "Failed to open shift. Please try again."
+    "open_failed": "Failed to open shift. Please try again.",
+    "my_shift": "My Shift",
+    "go_to_pos": "Go to POS",
+    "close_shift_hint": "Enter your closing cash balance to close this shift.",
+    "cash_expenses": "Cash Expenses",
+    "over": "Over",
+    "short": "Short",
+    "balanced": "Balanced",
+    "new_shift": "Open New Shift"
   },
   "barcode": {
     "print_label": "Print Barcode Label",

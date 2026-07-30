@@ -81,6 +81,7 @@ class ShiftController
                 SELECT
                     COALESCE(SUM(CASE WHEN payment_method = 'cash'   THEN total ELSE 0 END), 0) AS cash_sales,
                     COALESCE(SUM(CASE WHEN payment_method != 'cash'  THEN total ELSE 0 END), 0) AS card_sales,
+                    COALESCE(SUM(total), 0) AS total_sales,
                     COUNT(*) AS sales_count
                 FROM sales WHERE shift_id = ? AND status = 'completed'
             ");
@@ -88,7 +89,19 @@ class ShiftController
             $s = $sales->fetch();
             $shift['live_cash_sales']  = (float)$s['cash_sales'];
             $shift['live_card_sales']  = (float)$s['card_sales'];
+            $shift['live_total_sales'] = (float)$s['total_sales'];
             $shift['live_sales_count'] = (int)$s['sales_count'];
+
+            $exp = $db->prepare("
+                SELECT
+                    COALESCE(SUM(amount), 0) AS expenses_total,
+                    COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN amount ELSE 0 END), 0) AS cash_expenses
+                FROM expenses WHERE shift_id = ?
+            ");
+            $exp->execute([(int)$shift['id']]);
+            $e = $exp->fetch();
+            $shift['live_expenses_total'] = (float)$e['expenses_total'];
+            $shift['live_cash_expenses']  = (float)$e['cash_expenses'];
         }
 
         Response::success($shift ?: null);
