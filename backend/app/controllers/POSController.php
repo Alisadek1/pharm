@@ -95,21 +95,27 @@ class POSController
 
         $invoiceNum = $this->generateInvoiceNumber($db);
 
+        // Attach to the cashier's current open shift (if any)
+        $shiftRow = $db->prepare("SELECT id FROM shifts WHERE user_id = ? AND status = 'open' LIMIT 1");
+        $shiftRow->execute([$user['id']]);
+        $shiftId = ($shiftRow->fetchColumn()) ?: null;
+
         Database::beginTransaction();
         try {
             $saleStmt = $db->prepare("
-                INSERT INTO sales (invoice_number, customer_id, user_id, subtotal, discount_type,
+                INSERT INTO sales (invoice_number, customer_id, user_id, shift_id, subtotal, discount_type,
                     discount_value, discount_amount, tax_rate, tax_amount, total,
                     loyalty_points_used, loyalty_discount, loyalty_points_earned,
                     payment_method, cash_amount, visa_amount, wallet_amount, change_amount,
                     status, notes, sale_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $paymentMethod = $this->determinePaymentMethod($cashAmount, $visaAmount, $walletAmt);
             $saleStmt->execute([
                 $invoiceNum,
                 !empty($body['customer_id']) ? (int)$body['customer_id'] : null,
                 $user['id'],
+                $shiftId,
                 round($subtotal, 3),
                 $discountType,
                 $discountValue,

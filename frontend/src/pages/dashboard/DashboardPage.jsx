@@ -373,6 +373,8 @@ export default function DashboardPage() {
         .finally(() => setFullLoading(false))
     } else {
       refreshShift()
+      const timer = setInterval(refreshShift, 30000)
+      return () => clearInterval(timer)
     }
   }, [isFullDashboard]) // eslint-disable-line react-hooks/exhaustive-deps
 
