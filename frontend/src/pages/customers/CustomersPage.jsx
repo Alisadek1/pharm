@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, StarIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, StarIcon } from '@heroicons/react/24/outline'
 
 const DEFAULT_CUSTOMER_TEMPLATE = 'Hello {customer_name}, welcome to {store_name}!'
 
@@ -86,11 +86,6 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [settings, setSettings] = useState({})
-  const [stmtItem, setStmtItem] = useState(null)
-  const [stmtData, setStmtData] = useState(null)
-  const [stmtLoading, setStmtLoading] = useState(false)
-  const [stmtFrom, setStmtFrom] = useState(new Date().toISOString().slice(0, 8) + '01')
-  const [stmtTo, setStmtTo] = useState(new Date().toISOString().slice(0, 10))
 
   const load = useCallback(() => {
     get('/api/customers', { page: pg.page, per_page: pg.perPage, search }).then(res => { setRows(res.data || []); pg.updateMeta(res.meta) })
@@ -120,19 +115,6 @@ export default function CustomersPage() {
       setModal(null); setEditItem(null); load()
     } catch {} finally { setSaving(false) }
   }
-
-  const loadStatement = useCallback(async () => {
-    if (!stmtItem) return
-    setStmtLoading(true)
-    get(`/api/customers/${stmtItem.id}/statement?date_from=${stmtFrom}&date_to=${stmtTo}`)
-      .then(r => setStmtData(r.data))
-      .catch(() => {})
-      .finally(() => setStmtLoading(false))
-  }, [stmtItem?.id, stmtFrom, stmtTo]) // get omitted — stable
-
-  useEffect(() => {
-    if (modal === 'statement') loadStatement()
-  }, [modal, loadStatement])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -191,7 +173,6 @@ export default function CustomersPage() {
                     <td>
                       <div className="flex gap-1">
                         <button onClick={() => openView(row)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500"><EyeIcon className="w-4 h-4" /></button>
-                        <button onClick={() => { setStmtItem(row); setModal('statement') }} title={t('customers.statement')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-500"><DocumentTextIcon className="w-4 h-4" /></button>
                         <button onClick={() => openWhatsAppCustomer(row, t, settings)} title={t('customers.whatsapp')} className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${row.phone ? 'text-gray-400 hover:text-green-500' : 'text-gray-200 dark:text-gray-600 cursor-default'}`}>
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                         </button>
@@ -253,76 +234,6 @@ export default function CustomersPage() {
             </div>
           </div>
         )}
-      </Modal>
-
-      <Modal open={modal === 'statement'} onClose={() => { setModal(null); setStmtData(null) }}
-        title={`${t('customers.statement')}: ${stmtItem?.name}`} size="xl">
-        <div className="space-y-4">
-          {/* Date range picker */}
-          <div className="flex flex-wrap items-end gap-3 bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t('common.from')}</label>
-              <input type="date" value={stmtFrom} onChange={e => setStmtFrom(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{t('common.to')}</label>
-              <input type="date" value={stmtTo} onChange={e => setStmtTo(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-            </div>
-          </div>
-
-          {/* Totals */}
-          {stmtData && (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                [t('customers.stmt_invoiced'), stmtData.totals?.total_invoiced, 'text-gray-900 dark:text-white'],
-                [t('customers.stmt_paid'),     stmtData.totals?.total_paid,     'text-green-600 dark:text-green-400'],
-                [t('customers.stmt_due'),      stmtData.totals?.total_outstanding, 'text-red-600 dark:text-red-400'],
-              ].map(([label, val, cls]) => (
-                <div key={label} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                  <p className={`text-base font-bold mt-0.5 ${cls}`}>{formatCurrency(val)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Sales table */}
-          {stmtLoading ? (
-            <div className="py-8 text-center text-gray-400 text-sm">{t('common.loading')}</div>
-          ) : stmtData && stmtData.sales?.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                    {[t('sales.col_invoice'), t('common.date'), t('common.total'), t('customers.stmt_paid'), t('customers.stmt_due'), t('common.status')].map((h, i) => (
-                      <th key={i} className="text-start px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                  {stmtData.sales.map(s => (
-                    <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                      <td className="px-3 py-2 font-mono text-xs text-primary-600 dark:text-primary-400">{s.invoice_number}</td>
-                      <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatDate(s.sale_date)}</td>
-                      <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white">{formatCurrency(s.total)}</td>
-                      <td className="px-3 py-2 text-green-600 dark:text-green-400">{formatCurrency(s.paid_amount)}</td>
-                      <td className="px-3 py-2 text-red-500 dark:text-red-400">{parseFloat(s.due_amount) > 0 ? formatCurrency(s.due_amount) : '—'}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          s.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        }`}>{t(`status.${s.status}`) || s.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : stmtData ? (
-            <p className="text-center text-gray-400 text-sm py-8">{t('common.no_data')}</p>
-          ) : null}
-        </div>
       </Modal>
 
       <ConfirmDialog open={!!delItem} onClose={() => setDelItem(null)} onConfirm={handleDelete} loading={deleting}
