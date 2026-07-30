@@ -903,7 +903,10 @@
     "net": "Net",
     "shift": "Shift",
     "opened_success": "Shift opened successfully",
-    "closed_success": "Shift closed successfully"
+    "closed_success": "Shift closed successfully",
+    "gate_title": "Open Your Shift",
+    "gate_subtitle": "A shift must be open before you can use the system. Please enter your opening cash to begin.",
+    "open_failed": "Failed to open shift. Please try again."
   },
   "barcode": {
     "print_label": "Print Barcode Label",

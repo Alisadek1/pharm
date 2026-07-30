@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ShiftProvider } from './context/ShiftContext'
 import { ThemeProvider } from './context/ThemeContext'
+import ShiftGate from './components/ShiftGate'
 import MainLayout from './layouts/MainLayout'
 
 import LoginPage         from './pages/auth/LoginPage'
@@ -51,6 +53,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/*" element={
         <ProtectedRoute>
+          <ShiftGate>
           <MainLayout>
             <Routes>
               <Route path="/"              element={<DashboardPage />} />
@@ -76,6 +79,7 @@ function AppRoutes() {
               <Route path="/shifts"        element={<ShiftsPage />} />
             </Routes>
           </MainLayout>
+          </ShiftGate>
         </ProtectedRoute>
       } />
     </Routes>
@@ -87,7 +91,9 @@ export default function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ThemeProvider>
         <AuthProvider>
+          <ShiftProvider>
           <AppRoutes />
+          </ShiftProvider>
           <Toaster
             position="top-right"
             toastOptions={{
