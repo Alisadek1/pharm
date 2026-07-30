@@ -11,14 +11,6 @@ function toWaPhone(phone) {
   if (d.startsWith('0')) return d.slice(1)
   return d
 }
-function openWhatsApp(phone, t, settings) {
-  const wa = toWaPhone(phone)
-  if (!wa) return toast.error(t('customers.whatsapp_no_phone'))
-  const template = settings?.whatsapp_customer_template || DEFAULT_CUSTOMER_TEMPLATE
-  const storeName = settings?.pharmacy_name || 'PharmaCare'
-  const msg = template.replace(/{customer_name}/g, '').replace(/{store_name}/g, storeName)
-  window.open(`https://wa.me/${wa}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`, '_blank')
-}
 function openWhatsAppCustomer(customer, t, settings) {
   const wa = toWaPhone(customer?.phone)
   if (!wa) return toast.error(t('customers.whatsapp_no_phone'))
