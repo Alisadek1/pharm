@@ -49,7 +49,7 @@ class DrugMapper
             return null;
         }
 
-        $nameAr         = $this->cleanText($row['commercial_name_ar'] ?? '');
+        $nameAr         = $this->cleanText(self::normalizeArabic($row['commercial_name_ar'] ?? ''));
         $scientificName = $this->cleanText($row['scientific_name']    ?? '');
         $manufacturer   = $this->cleanText($row['manufacturer']       ?? '');
         $drugClass      = $this->cleanText($row['drug_class']         ?? '');
@@ -70,12 +70,32 @@ class DrugMapper
     }
 
     /**
-     * Normalize a company or category name for cache-key and DB-storage use:
+     * Normalize a company or category name for DB-storage use:
      * collapse runs of whitespace, trim, keep original case.
      */
     public static function normalizeName(string $name): string
     {
         return trim((string) preg_replace('/\s+/', ' ', $name));
+    }
+
+    /**
+     * Derive a cache key from a string.
+     *
+     * More aggressive than normalizeName(): lowercases, strips zero-width and
+     * soft-hyphen Unicode codepoints, normalizes Arabic character variants, and
+     * collapses all whitespace. Two strings that differ only in those ways will
+     * produce the same key and be treated as duplicates.
+     */
+    public static function normalizeForKey(string $text): string
+    {
+        if ($text === '') {
+            return '';
+        }
+        // Remove zero-width joiner/non-joiner, zero-width space, soft-hyphen, BOM
+        $text = (string) preg_replace('/[\x{00AD}\x{200B}-\x{200D}\x{FEFF}]/u', '', $text);
+        $text = self::normalizeArabic($text);
+        $text = mb_strtolower(trim($text), 'UTF-8');
+        return (string) preg_replace('/\s+/u', ' ', $text);
     }
 
     /**
