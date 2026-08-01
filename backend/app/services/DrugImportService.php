@@ -63,6 +63,13 @@ class DrugImportService
     private array $medByNameAr   = [];
     private array $medBySciStr   = [];
 
+    // ── Intra-chunk pending inserts (flushed each chunk; checked by findDuplicate) ──
+    // Allows within-chunk duplicate detection without touching the main cache
+    // before the transaction commits (which would poison detection on rollback).
+    private array $chunkPendingName   = [];
+    private array $chunkPendingNameAr = [];
+    private array $chunkPendingSciStr = [];
+
     // ── Per-run counters (reset at start of each importFile call) ─────────────
     private int $companiesCreated  = 0;
     private int $categoriesCreated = 0;
@@ -253,6 +260,9 @@ class DrugImportService
         }
 
         $pendingCacheUpdates = [];
+        $this->chunkPendingName   = [];
+        $this->chunkPendingNameAr = [];
+        $this->chunkPendingSciStr = [];
 
         try {
             foreach ($prepared as $m) {
@@ -260,6 +270,9 @@ class DrugImportService
                 $result[$r['action']]++;
                 if ($r['id'] !== null) {
                     $pendingCacheUpdates[] = [$m, $r['id']];
+                    // Track in the intra-chunk pending set so findDuplicate can
+                    // catch duplicates within the same chunk before the commit.
+                    $this->addToChunkPending($m, $r['id']);
                 }
             }
 
@@ -272,13 +285,21 @@ class DrugImportService
             foreach ($pendingCacheUpdates as [$m, $id]) {
                 $this->addToMedicineCache($m, $id);
             }
+            $this->chunkPendingName   = [];
+            $this->chunkPendingNameAr = [];
+            $this->chunkPendingSciStr = [];
         } catch (\Throwable) {
             if (!$dryRun && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
 
-            $pendingCacheUpdates    = [];
-            $result['chunk_failed'] = true;
+            // Clear stale chunk-pending entries from the rolled-back transaction
+            // so the per-row fallback below starts from a clean intra-chunk state.
+            $this->chunkPendingName   = [];
+            $this->chunkPendingNameAr = [];
+            $this->chunkPendingSciStr = [];
+            $pendingCacheUpdates      = [];
+            $result['chunk_failed']   = true;
 
             // Per-row fallback: one bad record must not lose the whole chunk.
             foreach ($prepared as $m) {
@@ -293,6 +314,7 @@ class DrugImportService
                     $result[$r['action']]++;
                     if ($r['id'] !== null) {
                         $this->addToMedicineCache($m, $r['id']);
+                        $this->addToChunkPending($m, $r['id']);
                     }
                 } catch (\Throwable) {
                     if (!$dryRun && $this->db->inTransaction()) {
@@ -301,6 +323,9 @@ class DrugImportService
                     $result['failed']++;
                 }
             }
+            $this->chunkPendingName   = [];
+            $this->chunkPendingNameAr = [];
+            $this->chunkPendingSciStr = [];
         }
 
         return $result;
@@ -351,26 +376,53 @@ class DrugImportService
     private function findDuplicate(string $name, string $nameAr, string $sci, string $strength): ?int
     {
         $nk = DrugMapper::normalizeForKey($name);
-        if ($nk !== '' && isset($this->medByName[$nk])) {
-            return $this->medByName[$nk];
+        if ($nk !== '') {
+            if (isset($this->chunkPendingName[$nk])) return $this->chunkPendingName[$nk];
+            if (isset($this->medByName[$nk]))        return $this->medByName[$nk];
         }
 
         if ($nameAr !== '') {
             $nak = DrugMapper::normalizeForKey($nameAr);
-            if ($nak !== '' && isset($this->medByNameAr[$nak])) {
-                return $this->medByNameAr[$nak];
+            if ($nak !== '') {
+                if (isset($this->chunkPendingNameAr[$nak])) return $this->chunkPendingNameAr[$nak];
+                if (isset($this->medByNameAr[$nak]))        return $this->medByNameAr[$nak];
             }
         }
 
         if ($sci !== '' && $strength !== '') {
             $sk  = DrugMapper::normalizeForKey($sci);
             $stk = DrugMapper::normalizeForKey($strength);
-            if ($sk !== '' && $stk !== '' && isset($this->medBySciStr["{$sk}|{$stk}"])) {
-                return $this->medBySciStr["{$sk}|{$stk}"];
+            if ($sk !== '' && $stk !== '') {
+                $key = "{$sk}|{$stk}";
+                if (isset($this->chunkPendingSciStr[$key])) return $this->chunkPendingSciStr[$key];
+                if (isset($this->medBySciStr[$key]))        return $this->medBySciStr[$key];
             }
         }
 
         return null;
+    }
+
+    private function addToChunkPending(array $m, int $id): void
+    {
+        $nk = DrugMapper::normalizeForKey($m['name']);
+        if ($nk !== '') {
+            $this->chunkPendingName[$nk] = $id;
+        }
+
+        if (!empty($m['name_ar'])) {
+            $nak = DrugMapper::normalizeForKey((string) $m['name_ar']);
+            if ($nak !== '') {
+                $this->chunkPendingNameAr[$nak] = $id;
+            }
+        }
+
+        if (!empty($m['scientific_name']) && !empty($m['strength'])) {
+            $sk  = DrugMapper::normalizeForKey((string) $m['scientific_name']);
+            $stk = DrugMapper::normalizeForKey((string) $m['strength']);
+            if ($sk !== '' && $stk !== '') {
+                $this->chunkPendingSciStr["{$sk}|{$stk}"] = $id;
+            }
+        }
     }
 
     private function addToMedicineCache(array $m, int $id): void
@@ -632,10 +684,13 @@ class DrugImportService
         $this->categoriesCreated = 0;
         $this->dryRunNextId      = -1;
 
-        $this->companyCache  = [];
-        $this->categoryCache = [];
-        $this->medByName     = [];
-        $this->medByNameAr   = [];
-        $this->medBySciStr   = [];
+        $this->companyCache       = [];
+        $this->categoryCache      = [];
+        $this->medByName          = [];
+        $this->medByNameAr        = [];
+        $this->medBySciStr        = [];
+        $this->chunkPendingName   = [];
+        $this->chunkPendingNameAr = [];
+        $this->chunkPendingSciStr = [];
     }
 }
