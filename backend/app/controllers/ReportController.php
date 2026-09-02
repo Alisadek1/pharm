@@ -165,14 +165,27 @@ class ReportController
                    COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b
                              WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,
                    COALESCE((SELECT SUM(b.quantity * b.purchase_price) FROM medicine_batches b
-                             WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as stock_value
+                             WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as stock_value,
+                   (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                   (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar,
+                   COALESCE(CONCAT('[', GROUP_CONCAT(
+                       JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                       ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                   ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE m.is_active = 1
+            GROUP BY m.id
             ORDER BY m.name ASC
         ");
 
-        $rows    = $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+            unset($row['packaging_raw']);
+        }
+        unset($row);
         $summary = $db->query("
             SELECT
                 COUNT(*) as total_skus,
@@ -244,9 +257,11 @@ class ReportController
         $dateTo   = $_GET['date_to'] ?? date('Y-m-d');
         $type     = trim($_GET['type'] ?? '');
 
-        $where = ["DATE(r.created_at) BETWEEN '{$dateFrom}' AND '{$dateTo}'"];
+        $where  = ['DATE(r.created_at) BETWEEN ? AND ?'];
+        $binds  = [$dateFrom, $dateTo];
         if ($type !== '') {
-            $where[] = "r.type = '{$type}'";
+            $where[] = 'r.type = ?';
+            $binds[] = $type;
         }
         $whereStr = implode(' AND ', $where);
 
@@ -256,7 +271,7 @@ class ReportController
             WHERE {$whereStr}
             ORDER BY r.created_at DESC
         ");
-        $stmt->execute();
+        $stmt->execute($binds);
         $rows    = $stmt->fetchAll();
         $summary = ['total_returns' => count($rows), 'total_amount' => array_sum(array_column($rows, 'total_amount'))];
 
@@ -395,16 +410,27 @@ class ReportController
                              WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,
                    COALESCE((SELECT SUM(si.quantity) FROM sale_items si
                               JOIN sales s ON s.id = si.sale_id AND s.status = 'completed'
-                              WHERE si.medicine_id = m.id AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) as qty_sold
+                              WHERE si.medicine_id = m.id AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) as qty_sold,
+                   COALESCE(CONCAT('[', GROUP_CONCAT(
+                       JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                       ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                   ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE m.is_active = 1
+            GROUP BY m.id
             HAVING qty_sold < 5 AND current_stock > 0
             ORDER BY qty_sold ASC, current_stock DESC
             LIMIT ?
         ");
         $stmt->execute([$days, $limit]);
-        $rows    = $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+            unset($row['packaging_raw']);
+        }
+        unset($row);
         $summary = ['total_items' => count($rows)];
         foreach ($rows as &$r) { $r['total_sold'] = $r['qty_sold']; $r['last_sold'] = null; $r['stock_value'] = (float)$r['current_stock'] * 0; }
         Response::success(compact('summary', 'rows'));
@@ -530,19 +556,32 @@ class ReportController
                     WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()
                 ), 0)             AS current_stock,
                 COALESCE((
-                    SELECT SUM(b.quantity * m.selling_price)
+                    SELECT SUM(b.quantity * b.purchase_price)
                     FROM medicine_batches b
                     WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()
-                ), 0)             AS total_value
+                ), 0)             AS total_value,
+                (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar,
+                COALESCE(CONCAT('[', GROUP_CONCAT(
+                    JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                    ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c  ON c.id = m.category_id
             LEFT JOIN companies co  ON co.id = m.company_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE {$whereStr}
+            GROUP BY m.id
             HAVING (? = 0 OR current_stock <= m.minimum_stock)
             ORDER BY total_value DESC
         ");
         $stmt->execute([...$binds, $lowStock]);
         $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+            unset($row['packaging_raw']);
+        }
+        unset($row);
 
         $summary = [
             'total_products'         => count($rows),
@@ -759,16 +798,27 @@ class ReportController
                 break;
 
             case 'slow_moving':
-                fputcsv($out, ['Medicine', 'SKU', 'Category', 'Current Stock', 'Qty Sold (30d)']);
-                $stmt = $db->query("
+                $smDays  = max(1, (int)($_GET['days']  ?? 30));
+                $smLimit = max(1, (int)($_GET['limit'] ?? 5));
+                fputcsv($out, ['Medicine', 'SKU', 'Category', 'Current Stock', "Qty Sold ({$smDays}d)"]);
+                $smStmt = $db->prepare("
                     SELECT m.name, m.sku, COALESCE(c.name,''),
-                           COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b WHERE b.medicine_id=m.id AND b.quantity>0 AND b.expiry_date>=CURDATE()),0),
-                           COALESCE((SELECT SUM(si.quantity) FROM sale_items si JOIN sales s ON s.id=si.sale_id AND s.status='completed'
-                                     WHERE si.medicine_id=m.id AND s.sale_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)),0)
-                    FROM medicines m LEFT JOIN categories c ON c.id=m.category_id WHERE m.is_active=1
-                    HAVING 4 < 5 ORDER BY 5 ASC, 4 DESC LIMIT 50
+                           COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b
+                                     WHERE b.medicine_id=m.id AND b.quantity>0 AND b.expiry_date>=CURDATE()),0)
+                             AS current_stock,
+                           COALESCE((SELECT SUM(si.quantity) FROM sale_items si
+                                     JOIN sales s ON s.id=si.sale_id AND s.status='completed'
+                                     WHERE si.medicine_id=m.id
+                                       AND s.sale_date>=DATE_SUB(CURDATE(), INTERVAL ? DAY)),0)
+                             AS qty_sold
+                    FROM medicines m LEFT JOIN categories c ON c.id=m.category_id
+                    WHERE m.is_active=1
+                    HAVING qty_sold < ?
+                    ORDER BY qty_sold ASC, current_stock DESC
+                    LIMIT 200
                 ");
-                foreach ($stmt->fetchAll() as $row) fputcsv($out, $row);
+                $smStmt->execute([$smDays, $smLimit]);
+                foreach ($smStmt->fetchAll() as $row) fputcsv($out, $row);
                 break;
 
             case 'expired':

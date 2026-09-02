@@ -9,15 +9,16 @@ class SaleController
         $user = AuthMiddleware::handle();
         AuthMiddleware::require($user, 'sales.view');
 
-        $db         = Database::getInstance();
-        $page       = max(1, (int)($_GET['page'] ?? 1));
-        $perPage    = min(100, max(10, (int)($_GET['per_page'] ?? 20)));
-        $customerId = (int)($_GET['customer_id'] ?? 0);
-        $status     = trim($_GET['status'] ?? '');
-        $dateFrom   = trim($_GET['date_from'] ?? '');
-        $dateTo     = trim($_GET['date_to'] ?? '');
-        $search     = trim($_GET['search'] ?? '');
-        $payMethod  = trim($_GET['payment_method'] ?? '');
+        $db            = Database::getInstance();
+        $page          = max(1, (int)($_GET['page'] ?? 1));
+        $perPage       = min(100, max(10, (int)($_GET['per_page'] ?? 20)));
+        $customerId    = (int)($_GET['customer_id'] ?? 0);
+        $status        = trim($_GET['status'] ?? '');
+        $dateFrom      = trim($_GET['date_from'] ?? '');
+        $dateTo        = trim($_GET['date_to'] ?? '');
+        $search        = trim($_GET['search'] ?? '');
+        $payMethod     = trim($_GET['payment_method'] ?? '');
+        $productSearch = trim($_GET['product_search'] ?? '');
 
         $where = ['1=1'];
         $binds = [];
@@ -54,6 +55,18 @@ class SaleController
             $binds[] = "%{$search}%";
         }
 
+        if ($productSearch !== '') {
+            $where[] = 'EXISTS (
+                SELECT 1 FROM sale_items si2
+                JOIN medicines m2 ON m2.id = si2.medicine_id
+                WHERE si2.sale_id = s.id
+                  AND (m2.name LIKE ? OR m2.name_ar LIKE ? OR m2.barcode LIKE ?)
+            )';
+            $binds[] = "%{$productSearch}%";
+            $binds[] = "%{$productSearch}%";
+            $binds[] = "%{$productSearch}%";
+        }
+
         $whereStr = implode(' AND ', $where);
         $total    = $db->prepare("
             SELECT COUNT(*) FROM sales s
@@ -65,17 +78,54 @@ class SaleController
 
         $offset = ($page - 1) * $perPage;
         $stmt   = $db->prepare("
-            SELECT s.*, c.name as customer_name, c.phone as customer_phone, u.name as cashier_name
+            SELECT s.*,
+                   c.name  AS customer_name,
+                   c.phone AS customer_phone,
+                   u.name  AS cashier_name,
+                   (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS items_count
             FROM sales s
             LEFT JOIN customers c ON c.id = s.customer_id
-            LEFT JOIN users u ON u.id = s.user_id
+            LEFT JOIN users u     ON u.id = s.user_id
             WHERE {$whereStr}
             ORDER BY s.sale_date DESC, s.id DESC
             LIMIT ? OFFSET ?
         ");
         $stmt->execute([...$binds, $perPage, $offset]);
+        $rows = $stmt->fetchAll();
 
-        Response::paginated($stmt->fetchAll(), $total, $page, $perPage);
+        // When searching by product, attach matched_items to each row — one batch query, no N+1
+        if ($productSearch !== '' && $rows) {
+            $saleIds      = array_column($rows, 'id');
+            $placeholders = implode(',', array_fill(0, count($saleIds), '?'));
+            $matchedStmt  = $db->prepare("
+                SELECT si.sale_id,
+                       m.name              AS medicine_name,
+                       m.name_ar,
+                       si.quantity,
+                       si.unit_name_snapshot
+                FROM   sale_items si
+                JOIN   medicines m ON m.id = si.medicine_id
+                WHERE  si.sale_id IN ({$placeholders})
+                  AND  (m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ?)
+                ORDER  BY si.sale_id, si.id
+            ");
+            $matchedStmt->execute([...$saleIds, "%{$productSearch}%", "%{$productSearch}%", "%{$productSearch}%"]);
+            $grouped = [];
+            foreach ($matchedStmt->fetchAll() as $mi) {
+                $grouped[$mi['sale_id']][] = [
+                    'medicine_name' => $mi['medicine_name'],
+                    'name_ar'       => $mi['name_ar'],
+                    'quantity'      => (int)$mi['quantity'],
+                    'unit_name'     => $mi['unit_name_snapshot'] ?? '',
+                ];
+            }
+            foreach ($rows as &$row) {
+                $row['matched_items'] = $grouped[$row['id']] ?? [];
+            }
+            unset($row);
+        }
+
+        Response::paginated($rows, $total, $page, $perPage);
     }
 
     public function show(array $params): void
@@ -197,10 +247,12 @@ class SaleController
                 $refundAmt = round($qty * (float)$saleItem['unit_price'], 3);
                 $totalRefund += $refundAmt;
 
-                // Return stock to batch
+                // Return stock to batch using the frozen conversion factor
                 if ($saleItem['batch_id']) {
+                    $factor  = (float)($saleItem['conversion_factor'] ?? 1.0);
+                    $baseQty = (int)round($qty * $factor);
                     $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                       ->execute([$qty, $saleItem['batch_id']]);
+                       ->execute([$baseQty, $saleItem['batch_id']]);
                 }
 
                 $db->prepare("UPDATE sale_items SET returned_quantity = returned_quantity + ? WHERE id = ?")
@@ -257,13 +309,16 @@ class SaleController
         Database::beginTransaction();
         try {
             // Restore stock for each item
-            $items = $db->prepare("SELECT * FROM sale_items WHERE sale_id = ?")->execute([$id]);
-            $items = $db->query("SELECT * FROM sale_items WHERE sale_id = {$id}")->fetchAll();
+            $itemStmt = $db->prepare("SELECT * FROM sale_items WHERE sale_id = ?");
+            $itemStmt->execute([$id]);
+            $items = $itemStmt->fetchAll();
 
             foreach ($items as $item) {
                 if ($item['batch_id']) {
+                    $factor  = (float)($item['conversion_factor'] ?? 1.0);
+                    $baseQty = (int)round($item['quantity'] * $factor);
                     $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                       ->execute([$item['quantity'], $item['batch_id']]);
+                       ->execute([$baseQty, $item['batch_id']]);
                 }
             }
 

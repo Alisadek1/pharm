@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ShiftProvider } from './context/ShiftContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { SettingsProvider } from './context/SettingsContext'
 import ShiftGate from './components/ShiftGate'
 import MainLayout from './layouts/MainLayout'
 
@@ -91,14 +92,30 @@ export default function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ThemeProvider>
         <AuthProvider>
+          <SettingsProvider>
           <ShiftProvider>
           <AppRoutes />
           </ShiftProvider>
+          </SettingsProvider>
           <Toaster
             position="top-right"
             toastOptions={{
-              duration: 3500,
-              style: { borderRadius: '10px', fontSize: '14px' },
+              duration: 4000,
+              style: {
+                borderRadius: '14px',
+                fontSize: '14px',
+                fontWeight: '500',
+                padding: '12px 16px',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+                maxWidth: '380px',
+              },
+              success: {
+                iconTheme: { primary: '#10b981', secondary: '#fff' },
+              },
+              error: {
+                iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                duration: 5000,
+              },
             }}
           />
         </AuthProvider>

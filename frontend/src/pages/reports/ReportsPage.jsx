@@ -5,6 +5,8 @@ import {
   UsersIcon, StarIcon,
 } from '@heroicons/react/24/outline'
 import { useApi } from '../../hooks/useApi'
+import StockDisplay from '../../components/ui/StockDisplay'
+import PriceDisplay from '../../components/ui/PriceDisplay'
 import { formatCurrency, formatDate, statusLabel, paymentMethodLabel } from '../../utils/format'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import {
@@ -31,7 +33,6 @@ const REPORT_TYPES = [
   { id: 'customers',        label: 'Customer Report',     icon: UsersIcon,           color: 'cyan' },
   { id: 'best_selling',     label: 'Best Selling',        icon: StarIcon,            color: 'orange' },
   { id: 'slow_moving',      label: 'Slow Moving',         icon: ChartBarIcon,        color: 'gray' },
-  { id: 'expired',          label: 'Expired Medicines',   icon: CubeIcon,            color: 'red' },
   { id: 'cash',             label: 'Cash Report',         icon: CurrencyDollarIcon,  color: 'emerald' },
   { id: 'suppliers',        label: 'Supplier Report',     icon: TruckIcon,           color: 'violet' },
 ]
@@ -203,10 +204,10 @@ function InventoryReport({ data }) {
         columns={[
           { key: 'name', label: 'Medicine', render: (v, row) => <div><p className="font-medium">{v}</p><p className="text-xs text-gray-400">{row.sku}</p></div> },
           { key: 'category_name', label: 'Category' },
-          { key: 'current_stock', label: 'Stock', render: v => <span className={`font-bold ${v <= 0 ? 'text-red-500' : v < 10 ? 'text-amber-500' : 'text-gray-900 dark:text-white'}`}>{v}</span> },
+          { key: 'current_stock', label: 'Stock', render: (v, row) => <StockDisplay baseQty={v} units={row.packaging} /> },
           { key: 'minimum_stock', label: 'Min' },
-          { key: 'purchase_price', label: 'Pharmacist Price', render: v => formatCurrency(v) },
-          { key: 'selling_price', label: 'Public Price', render: v => formatCurrency(v) },
+          { key: 'purchase_price', label: 'Pharmacist Price', render: (v, row) => <PriceDisplay price={v} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /> },
+          { key: 'selling_price', label: 'Public Price', render: (v, row) => <PriceDisplay price={v} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /> },
           { key: 'stock_value', label: 'Value', render: v => formatCurrency(v) },
         ]}
         rows={rows}
@@ -311,9 +312,9 @@ function InventoryValueReport({ data }) {
         columns={[
           { key: 'name',          label: 'Medicine',          render: (v, row) => <div><p className="font-medium">{v}</p><p className="text-xs text-gray-400 font-mono">{row.barcode || row.sku}</p></div> },
           { key: 'category_name', label: 'Category' },
-          { key: 'current_stock', label: 'Stock',             render: v => <span className={`font-bold ${v <= 0 ? 'text-red-500' : v < 10 ? 'text-amber-500' : ''}`}>{v}</span> },
-          { key: 'pharmacist_price', label: 'Pharmacist Price', render: v => formatCurrency(v) },
-          { key: 'selling_price', label: 'Public Price',       render: v => formatCurrency(v) },
+          { key: 'current_stock', label: 'Stock',             render: (v, row) => <StockDisplay baseQty={v} units={row.packaging} /> },
+          { key: 'pharmacist_price', label: 'Pharmacist Price', render: (v, row) => <PriceDisplay price={v} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /> },
+          { key: 'selling_price', label: 'Public Price',       render: (v, row) => <PriceDisplay price={v} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /> },
           { key: 'total_value',   label: 'Total Value',       render: v => <span className="font-bold text-green-600">{formatCurrency(v)}</span> },
         ]}
         rows={rows}
@@ -354,18 +355,10 @@ const REPORT_COLUMNS = {
   ],
   slow_moving: [
     { key: 'name', label: 'Medicine' },
-    { key: 'current_stock', label: 'Stock', render: v => <span className="font-bold text-amber-500">{v}</span> },
+    { key: 'current_stock', label: 'Stock', render: (v, row) => <StockDisplay baseQty={v} units={row.packaging} /> },
     { key: 'total_sold', label: 'Sold (Period)' },
     { key: 'last_sold', label: 'Last Sale', render: v => v ? formatDate(v) : L('Never') },
     { key: 'stock_value', label: 'Stock Value', render: v => formatCurrency(v) },
-  ],
-  expired: [
-    { key: 'medicine_name', label: 'Medicine' },
-    { key: 'batch_number', label: 'Batch', render: v => <span className="font-mono text-xs">{v}</span> },
-    { key: 'expiry_date', label: 'Expired', render: v => <span className="text-red-500 font-semibold">{formatDate(v)}</span> },
-    { key: 'quantity', label: 'Qty', render: v => <span className="font-bold text-red-500">{v}</span> },
-    { key: 'purchase_price', label: 'Pharmacist Price', render: v => formatCurrency(v) },
-    { key: 'loss_value', label: 'Loss', render: v => <span className="text-red-600 font-semibold">{formatCurrency(v)}</span> },
   ],
   purchases: [
     { key: 'date', label: 'Date', render: v => formatDate(v) },

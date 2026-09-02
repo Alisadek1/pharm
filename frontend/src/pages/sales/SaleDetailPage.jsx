@@ -27,6 +27,7 @@ function buildWaMessage(sale, settings) {
 }
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
+import { useSettings } from '../../context/SettingsContext'
 import { formatCurrency, formatDateTime, statusLabel } from '../../utils/format'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
@@ -39,17 +40,12 @@ export default function SaleDetailPage() {
   const navigate = useNavigate()
   const { can } = useAuth()
   const { get, loading } = useApi()
+  const { settings } = useSettings()
   const [sale, setSale] = useState(null)
-  const [settings, setSettings] = useState({})
   const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     get(`/api/sales/${id}`).then(res => setSale(res.data))
-    get('/api/settings', null, { silent: true }).then(res => {
-      const s = {}
-      ;(res.data || []).forEach(item => { s[item.key] = item.value })
-      setSettings(s)
-    }).catch(() => {})
   }, [id])
 
   const handlePrint = () => window.print()
@@ -141,7 +137,6 @@ export default function SaleDetailPage() {
                 <tr>
                   <th>#</th>
                   <th>{t('sales.col_medicine')}</th>
-                  <th>{t('batches.col_batch')}</th>
                   <th>{t('sales.col_qty')}</th>
                   <th>{t('sales.col_unit_price')}</th>
                   <th>{t('sales.col_discount')}</th>
@@ -149,20 +144,48 @@ export default function SaleDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {(sale.items || []).map((item, i) => (
-                  <tr key={item.id}>
-                    <td className="text-gray-400">{i + 1}</td>
-                    <td>
-                      <p className="font-medium text-gray-900 dark:text-white">{item.medicine_name}</p>
-                      {item.medicine_name_ar && <p className="text-xs text-gray-400" dir="rtl">{item.medicine_name_ar}</p>}
-                    </td>
-                    <td className="font-mono text-xs text-gray-400">{item.batch_number || '—'}</td>
-                    <td className="font-semibold">{item.quantity}</td>
-                    <td>{formatCurrency(item.unit_price)}</td>
-                    <td className="text-red-500">{item.discount_amount > 0 ? `− ${formatCurrency(item.discount_amount)}` : '—'}</td>
-                    <td className="font-semibold">{formatCurrency(item.subtotal)}</td>
-                  </tr>
-                ))}
+                {(() => {
+                  // Group items by medicine_id so multi-unit sales render as one block
+                  const groups = Object.values(
+                    (sale.items || []).reduce((acc, item) => {
+                      const key = String(item.medicine_id)
+                      if (!acc[key]) acc[key] = { medicine_name: item.medicine_name, medicine_name_ar: item.medicine_name_ar, lines: [] }
+                      acc[key].lines.push(item)
+                      return acc
+                    }, {})
+                  )
+                  let rowNum = 0
+                  return groups.flatMap(group =>
+                    group.lines.map((item, li) => {
+                      rowNum++
+                      const isFirst = li === 0
+                      return (
+                        <tr key={item.id} className={!isFirst ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}>
+                          <td className="text-gray-400">{isFirst ? rowNum : ''}</td>
+                          <td>
+                            {isFirst && (
+                              <>
+                                <p className="font-medium text-gray-900 dark:text-white">{item.medicine_name}</p>
+                                {item.medicine_name_ar && <p className="text-xs text-gray-400" dir="rtl">{item.medicine_name_ar}</p>}
+                              </>
+                            )}
+                            {!isFirst && item.unit_name_snapshot && (
+                              <p className="text-xs text-gray-400 ps-3">↳ {item.unit_name_snapshot}</p>
+                            )}
+                          </td>
+                          <td className="font-semibold">
+                            {item.unit_name_snapshot
+                              ? <span>{item.quantity} <span className="text-xs text-gray-400">{item.unit_name_snapshot}</span></span>
+                              : item.quantity}
+                          </td>
+                          <td>{formatCurrency(item.unit_price)}</td>
+                          <td className="text-red-500">{item.discount_amount > 0 ? `− ${formatCurrency(item.discount_amount)}` : '—'}</td>
+                          <td className="font-semibold">{formatCurrency(item.subtotal)}</td>
+                        </tr>
+                      )
+                    })
+                  )
+                })()}
               </tbody>
             </table>
           </div>

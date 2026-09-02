@@ -64,11 +64,31 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'], true)) {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
     if (str_contains($contentType, 'application/json')) {
-        $body = file_get_contents('php://input');
-        if ($body) {
-            $parsed = json_decode($body, true);
+        $raw = file_get_contents('php://input');
+        if ($raw) {
+            $parsed = json_decode($raw, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $_POST = array_merge($_POST, $parsed ?? []);
+            }
+        }
+    } elseif (
+        in_array($_SERVER['REQUEST_METHOD'], ['PUT', 'PATCH'], true) &&
+        str_contains($contentType, 'multipart/form-data')
+    ) {
+        // PHP only auto-parses multipart bodies for POST; do it manually for PUT/PATCH
+        if (preg_match('/boundary=(.+)$/i', $contentType, $m)) {
+            $boundary = trim($m[1]);
+            $raw      = file_get_contents('php://input');
+            foreach (explode('--' . $boundary, $raw) as $part) {
+                if ($part === '' || $part === "--\r\n" || $part === '--') continue;
+                if (!str_contains($part, "\r\n\r\n")) continue;
+                [$headers, $value] = explode("\r\n\r\n", $part, 2);
+                $value = rtrim($value, "\r\n");
+                if (preg_match('/Content-Disposition:[^\r\n]*name="([^"]+)"/i', $headers, $nm)) {
+                    if (!preg_match('/filename=/i', $headers)) {
+                        $_POST[$nm[1]] = $value;
+                    }
+                }
             }
         }
     }

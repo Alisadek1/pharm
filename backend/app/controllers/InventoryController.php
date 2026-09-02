@@ -70,18 +70,32 @@ class InventoryController
                    (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.expiry_date < CURDATE() AND b.quantity > 0) as expired_batches,
                    (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id
                     AND b.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND b.quantity > 0) as near_expiry_batches,
-                   (SELECT MIN(b.expiry_date) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0) as nearest_expiry
+                   (SELECT MIN(b.expiry_date) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0) as nearest_expiry,
+                   (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                   (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar,
+                   COALESCE(CONCAT('[', GROUP_CONCAT(
+                       JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                       ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                   ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             LEFT JOIN companies co ON co.id = m.company_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE {$whereStr}
+            GROUP BY m.id
             {$havingClause}
             ORDER BY m.name ASC
             LIMIT ? OFFSET ?
         ");
         $stmt->execute([...$binds, $perPage, $offset]);
 
-        Response::paginated($stmt->fetchAll(), $total, $page, $perPage);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+            unset($row['packaging_raw']);
+        }
+        unset($row);
+        Response::paginated($rows, $total, $page, $perPage);
     }
 
     public function movements(array $params): void

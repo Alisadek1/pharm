@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon, BanknotesIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, TruckIcon, EyeIcon, CreditCardIcon, XMarkIcon, BanknotesIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -72,7 +72,7 @@ function SupplierForm({ initial, onSubmit, loading }) {
   )
 }
 
-function PaymentForm({ supplierId, onSuccess, onClose }) {
+function PaymentForm({ supplierId, balance, onSuccess, onClose }) {
   const { t } = useTranslation()
   const { post } = useApi()
   const [form, setForm] = useState({
@@ -89,10 +89,44 @@ function PaymentForm({ supplierId, onSuccess, onClose }) {
     if (!form.amount || parseFloat(form.amount) <= 0) return toast.error(t('suppliers.payment_amount_required'))
     setSaving(true)
     try {
-      await post(`/api/suppliers/${supplierId}/payments`, form)
+      await post(`/api/suppliers/${supplierId}/payments`, form, { silent: true })
       toast.success(t('suppliers.payment_added'))
       onSuccess()
-    } catch {} finally { setSaving(false) }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || ''
+      const isOverpayment = err.response?.status === 422 && msg.toLowerCase().includes('exceeds')
+      if (isOverpayment) {
+        const entered    = parseFloat(form.amount)
+        const available  = balance != null ? parseFloat(balance) : null
+        toast.custom((to) => (
+          <div className={`flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-2xl border border-red-100 dark:border-red-900/60 bg-white dark:bg-gray-800 min-w-[300px] transition-all duration-200 ${to.visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            <div className="shrink-0 mt-0.5 w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{t('suppliers.payment_exceeds_balance')}</p>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('suppliers.entered')}</span>
+                  <span className="text-xs font-bold text-red-500 tabular-nums">{formatCurrency(entered)}</span>
+                </div>
+                {available != null && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{t('suppliers.outstanding')}</span>
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 tabular-nums">{formatCurrency(available)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={() => toast.dismiss(to.id)} className="shrink-0 mt-0.5 text-gray-300 hover:text-gray-500 dark:hover:text-gray-300 transition-colors">
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+        ), { duration: 5000 })
+      } else {
+        toast.error(msg || t('common.error'))
+      }
+    } finally { setSaving(false) }
   }
 
   return (
@@ -311,6 +345,7 @@ export default function SuppliersPage() {
         {quickPaySupplier && (
           <PaymentForm
             supplierId={quickPaySupplier.id}
+            balance={quickPaySupplier.balance}
             onSuccess={() => { setQuickPaySupplier(null); load() }}
             onClose={() => setQuickPaySupplier(null)}
           />
@@ -394,6 +429,7 @@ export default function SuppliersPage() {
                     </div>
                     <PaymentForm
                       supplierId={viewItem.id}
+                      balance={viewItem.balance}
                       onSuccess={() => {
                         setShowPaymentForm(false)
                         loadPayments(viewItem.id)

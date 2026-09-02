@@ -166,9 +166,9 @@ export default function ShiftsPage() {
             </div>
             <div className="flex items-center gap-6">
               {[
-                [CurrencyDollarIcon, t('shifts.sales_total'),    current.sales_total,    'text-green-700 dark:text-green-300'],
-                [BanknotesIcon,      t('shifts.expenses_total'), current.expenses_total, 'text-red-600 dark:text-red-400'],
-                [ChartBarIcon,       t('shifts.opening_cash'),   current.opening_cash,   'text-gray-700 dark:text-gray-300'],
+                [CurrencyDollarIcon, t('shifts.sales_total'),    current.live_total_sales    ?? current.sales_total,    'text-green-700 dark:text-green-300'],
+                [BanknotesIcon,      t('shifts.expenses_total'), current.live_expenses_total ?? current.expenses_total, 'text-red-600 dark:text-red-400'],
+                [ChartBarIcon,       t('shifts.opening_cash'),   current.opening_cash,                                  'text-gray-700 dark:text-gray-300'],
               ].map(([Icon, label, val, cls]) => (
                 <div key={label} className="text-center">
                   <p className="text-xs text-green-600 dark:text-green-400">{label}</p>
@@ -257,11 +257,11 @@ export default function ShiftsPage() {
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-gray-400">{t('shifts.sales_total')}</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(current.sales_total)}</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(current.live_total_sales ?? current.sales_total)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-gray-400">{t('shifts.expenses_total')}</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(current.expenses_total)}</span>
+                <span className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(current.live_expenses_total ?? current.expenses_total)}</span>
               </div>
             </div>
             <div>

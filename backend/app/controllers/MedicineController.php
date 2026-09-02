@@ -52,17 +52,31 @@ class MedicineController
                    c.name as category_name,
                    co.name as company_name,
                    COALESCE((SELECT SUM(b.quantity) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()), 0) as current_stock,
-                   (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.expiry_date < CURDATE() AND b.quantity > 0) as expired_batches
+                   (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.expiry_date < CURDATE() AND b.quantity > 0) as expired_batches,
+                   (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                   (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar,
+                   COALESCE(CONCAT('[', GROUP_CONCAT(
+                       JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                       ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                   ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             LEFT JOIN companies co ON co.id = m.company_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE {$whereStr}
+            GROUP BY m.id
             ORDER BY m.name ASC
             LIMIT ? OFFSET ?
         ");
         $stmt->execute([...$binds, $perPage, $offset]);
 
-        Response::paginated($stmt->fetchAll(), $total, $page, $perPage);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+            unset($row['packaging_raw']);
+        }
+        unset($row);
+        Response::paginated($rows, $total, $page, $perPage);
     }
 
     public function store(array $params): void
@@ -73,10 +87,7 @@ class MedicineController
         $body = $_POST;
 
         $validator = Validator::make($body, [
-            'name'          => 'required|string|maxlength:200',
-            'public_price'  => 'required|numeric|min:0',
-            'purchase_price'=> 'required|numeric|min:0',
-            'minimum_stock' => 'required|integer|min:0',
+            'name' => 'required|string|maxlength:200',
         ]);
 
         if ($validator->fails()) {
@@ -94,8 +105,8 @@ class MedicineController
             }
         }
 
-        // Auto-generate SKU if not provided
-        $sku = !empty($body['sku']) ? trim($body['sku']) : 'MED-' . strtoupper(bin2hex(random_bytes(4)));
+        // Auto-generate SKU (local barcode) — never trust client value
+        $sku = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
 
         // Check duplicate SKU
         $stmt = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
@@ -113,12 +124,18 @@ class MedicineController
             }
         }
 
+        $allowedTypes = ['medicine', 'cosmetics', 'medical_supply', 'personal_care', 'other'];
+        $productType  = in_array($body['product_type'] ?? '', $allowedTypes, true)
+            ? $body['product_type']
+            : 'other';
+
         $stmt = $db->prepare("
             INSERT INTO medicines (
                 category_id, company_id, name, name_ar, barcode, sku,
-                dosage_form, strength, unit, purchase_price, selling_price, public_price, minimum_stock,
+                dosage_form, product_type, strength, unit,
+                purchase_price, selling_price, public_price, minimum_stock,
                 prescription_required, controlled_drug, image, description, is_active, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -129,12 +146,13 @@ class MedicineController
             !empty($body['barcode']) ? trim($body['barcode']) : null,
             $sku,
             trim($body['dosage_form'] ?? ''),
+            $productType,
             trim($body['strength'] ?? ''),
             trim($body['unit'] ?? 'Piece'),
-            (float)$body['purchase_price'],
-            (float)$body['public_price'],
-            (float)$body['public_price'],
-            (int)$body['minimum_stock'],
+            isset($body['purchase_price']) && $body['purchase_price'] !== '' ? (float)$body['purchase_price'] : 0.0,
+            isset($body['public_price'])   && $body['public_price']   !== '' ? (float)$body['public_price']   : 0.0,
+            isset($body['public_price'])   && $body['public_price']   !== '' ? (float)$body['public_price']   : 0.0,
+            isset($body['minimum_stock']) && $body['minimum_stock'] !== '' ? (int)$body['minimum_stock'] : 10,
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : 0,
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : 0,
             $image,
@@ -143,7 +161,21 @@ class MedicineController
             $user['id'],
         ]);
 
-        $id       = (int)$db->lastInsertId();
+        $id = (int)$db->lastInsertId();
+
+        // Auto-seed a base product_unit so the medicine is immediately usable at POS
+        try {
+            $unitName = trim($body['unit'] ?? 'Piece') ?: 'Piece';
+            $db->prepare("
+                INSERT INTO product_units
+                    (medicine_id, unit_name, unit_name_ar, unit_code, conversion_factor,
+                     is_base_unit, is_default_purchase, is_default_sale, is_active, sort_order)
+                VALUES (?, ?, '', ?, 1.000000, 1, 1, 1, 1, 0)
+            ")->execute([$id, $unitName, strtolower($unitName)]);
+        } catch (Exception $e) {
+            // Non-fatal — medicine created; admin can apply unit preset manually
+        }
+
         $medicine = $this->getById($db, $id);
 
         Logger::activity($user['id'], 'create', 'medicines', $id, "Created medicine: {$body['name']}");
@@ -180,10 +212,7 @@ class MedicineController
         }
 
         $validator = Validator::make($body, [
-            'name'          => 'required|string|maxlength:200',
-            'public_price'  => 'required|numeric|min:0',
-            'purchase_price'=> 'required|numeric|min:0',
-            'minimum_stock' => 'required|integer|min:0',
+            'name' => 'required|string|maxlength:200',
         ]);
 
         if ($validator->fails()) {
@@ -211,13 +240,21 @@ class MedicineController
             }
         }
 
-        $newPurchasePrice = (float)$body['purchase_price'];
-        $newPublicPrice   = (float)$body['public_price'];
+        $newPurchasePrice = isset($body['purchase_price']) && $body['purchase_price'] !== ''
+            ? (float)$body['purchase_price'] : (float)$existing['purchase_price'];
+        $newPublicPrice   = isset($body['public_price'])   && $body['public_price']   !== ''
+            ? (float)$body['public_price']   : (float)$existing['public_price'];
+
+        $allowedTypes = ['medicine', 'cosmetics', 'medical_supply', 'personal_care', 'other'];
+        $productType  = in_array($body['product_type'] ?? '', $allowedTypes, true)
+            ? $body['product_type']
+            : ($existing['product_type'] ?? 'other');
 
         $db->prepare("
             UPDATE medicines SET
                 category_id=?, company_id=?, name=?, name_ar=?, barcode=?,
-                dosage_form=?, strength=?, unit=?, purchase_price=?, selling_price=?, public_price=?,
+                dosage_form=?, product_type=?, strength=?, unit=?,
+                purchase_price=?, selling_price=?, public_price=?,
                 minimum_stock=?, prescription_required=?, controlled_drug=?,
                 image=?, description=?, is_active=?
             WHERE id = ?
@@ -228,12 +265,13 @@ class MedicineController
             trim($body['name_ar'] ?? $existing['name_ar']),
             !empty($body['barcode']) ? trim($body['barcode']) : $existing['barcode'],
             trim($body['dosage_form'] ?? $existing['dosage_form']),
+            $productType,
             trim($body['strength'] ?? $existing['strength']),
             trim($body['unit'] ?? $existing['unit']),
             $newPurchasePrice,
             $newPublicPrice,
             $newPublicPrice,
-            (int)$body['minimum_stock'],
+            isset($body['minimum_stock']) && $body['minimum_stock'] !== '' ? (int)$body['minimum_stock'] : (int)$existing['minimum_stock'],
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : $existing['prescription_required'],
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : $existing['controlled_drug'],
             $image,
@@ -338,7 +376,9 @@ class MedicineController
                    COALESCE((
                        SELECT SUM(b.quantity) FROM medicine_batches b
                        WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()
-                   ), 0) as current_stock
+                   ), 0) as current_stock,
+                   (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                   (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             WHERE m.is_active = 1
@@ -596,13 +636,25 @@ class MedicineController
                        SELECT SUM(b.quantity) FROM medicine_batches b
                        WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()
                    ), 0) as current_stock,
-                   (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id) as batch_count
+                   (SELECT COUNT(*) FROM medicine_batches b WHERE b.medicine_id = m.id) as batch_count,
+                   (SELECT pu2.unit_name    FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name,
+                   (SELECT pu2.unit_name_ar FROM product_units pu2 WHERE pu2.medicine_id = m.id AND pu2.is_default_purchase = 1 AND pu2.is_active = 1 LIMIT 1) AS default_purchase_unit_name_ar,
+                   COALESCE(CONCAT('[', GROUP_CONCAT(
+                       JSON_OBJECT('name', pu.unit_name, 'name_ar', pu.unit_name_ar, 'factor', CAST(pu.conversion_factor AS CHAR))
+                       ORDER BY pu.conversion_factor DESC SEPARATOR ','
+                   ), ']'), '[]') AS packaging_raw
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             LEFT JOIN companies co ON co.id = m.company_id
+            LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE m.id = ?
+            GROUP BY m.id
         ");
         $stmt->execute([$id]);
-        return $stmt->fetch() ?: null;
+        $row = $stmt->fetch();
+        if (!$row) return null;
+        $row['packaging'] = json_decode($row['packaging_raw'] ?? '[]', true) ?: [];
+        unset($row['packaging_raw']);
+        return $row;
     }
 }

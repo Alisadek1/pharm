@@ -27,7 +27,7 @@ class Upload
 
         $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = bin2hex(random_bytes(16)) . '.' . strtolower($ext);
-        $dir      = __DIR__ . '/../../uploads/' . $folder . '/';
+        $dir      = __DIR__ . '/../../public/uploads/' . $folder . '/';
 
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
@@ -43,7 +43,7 @@ class Upload
 
     public static function delete(string $path): void
     {
-        $fullPath = __DIR__ . '/../../' . $path;
+        $fullPath = __DIR__ . '/../../public/' . $path;
         if (file_exists($fullPath)) {
             unlink($fullPath);
         }

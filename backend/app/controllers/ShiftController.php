@@ -168,19 +168,27 @@ class ShiftController
         $salesRow->execute([$id]);
         $salesTotal = (float)$salesRow->fetchColumn();
 
+        $expensesRow = $db->prepare("
+            SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE shift_id = ?
+        ");
+        $expensesRow->execute([$id]);
+        $expensesTotal = (float)$expensesRow->fetchColumn();
+
         $db->prepare("
             UPDATE shifts SET
-                closing_cash = ?,
-                notes        = ?,
-                sales_total  = ?,
-                status       = 'closed',
-                closed_at    = NOW(),
-                closed_by    = ?
+                closing_cash   = ?,
+                notes          = ?,
+                sales_total    = ?,
+                expenses_total = ?,
+                status         = 'closed',
+                closed_at      = NOW(),
+                closed_by      = ?
             WHERE id = ?
         ")->execute([
             (float)($body['closing_cash'] ?? 0),
             trim($body['notes'] ?? ''),
             $salesTotal,
+            $expensesTotal,
             $user['id'],
             $id,
         ]);

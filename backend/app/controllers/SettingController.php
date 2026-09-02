@@ -28,13 +28,15 @@ class SettingController
         $allowed = [
             'pharmacy_name', 'pharmacy_name_ar', 'license_number', 'tax_registration',
             'address', 'phone', 'email', 'website',
-            'currency', 'currency_symbol', 'tax_rate', 'tax_name',
+            'currency', 'currency_symbol', 'tax_enabled', 'tax_rate', 'tax_name',
             'loyalty_rate', 'loyalty_point_value', 'near_expiry_days',
             'invoice_prefix', 'purchase_prefix', 'invoice_footer', 'invoice_footer_ar',
             'show_logo_invoice', 'show_qr_invoice',
             'default_printer', 'thermal_width', 'auto_print', 'print_copies', 'receipt_language',
             'whatsapp_sales_template', 'whatsapp_sales_template_ar',
             'whatsapp_customer_template', 'whatsapp_customer_template_ar',
+            'pricing_auto_enabled', 'pricing_mode', 'pricing_percentage',
+            'pricing_fixed_amount', 'pricing_round_to',
         ];
 
         $stmt = $db->prepare("INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");
@@ -80,13 +82,18 @@ class SettingController
 
         $db = Database::getInstance();
 
-        // Delete old logo
-        $oldLogo = $db->query("SELECT `value` FROM settings WHERE `key` = 'pharmacy_logo'")->fetchColumn();
+        // Delete old logo — check both keys for backward compatibility
+        $oldLogo = $db->query("SELECT `value` FROM settings WHERE `key` = 'logo' LIMIT 1")->fetchColumn();
+        if (!$oldLogo) {
+            $oldLogo = $db->query("SELECT `value` FROM settings WHERE `key` = 'pharmacy_logo' LIMIT 1")->fetchColumn();
+        }
         if ($oldLogo) {
             Upload::delete($oldLogo);
         }
+        // Remove legacy key if it exists so there is never two keys
+        $db->prepare("DELETE FROM settings WHERE `key` = 'pharmacy_logo'")->execute();
 
-        $db->prepare("INSERT INTO settings (`key`, `value`) VALUES ('pharmacy_logo', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")
+        $db->prepare("INSERT INTO settings (`key`, `value`) VALUES ('logo', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")
            ->execute([$path]);
 
         Logger::activity($user['id'], 'upload_logo', 'settings', null, 'Updated pharmacy logo');

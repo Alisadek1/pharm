@@ -3,9 +3,14 @@ frontend/dist/
 backend/storage/logs/
 backend/storage/backups/
 backend/storage/uploads/
+backend/storage/rate_limits/
 backend/.env
 backend/.env.railway
+backend/uploads/
+backend/public/uploads/
 public/assets/
+data/
+deploy/
 *.log
 .DS_Store
 Thumbs.db

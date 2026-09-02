@@ -85,7 +85,22 @@ $router->group('/api/medicines', function (Router $r) {
     $r->get('/{id}/batches',        [MedicineController::class, 'batches']);
     $r->get('/{id}/purchase-lines', [MedicineController::class, 'purchaseLines']);
     $r->get('/{id}/price-history',  [MedicineController::class, 'priceHistory']);
+    // Product units (multi-unit per medicine)
+    $r->get('/{medicine_id}/units/pos',    [ProductUnitController::class, 'posUnits']);
+    $r->post('/{medicine_id}/units/preset',[ProductUnitController::class, 'applyPreset']);
+    $r->get('/{medicine_id}/units',        [ProductUnitController::class, 'index']);
+    $r->post('/{medicine_id}/units',       [ProductUnitController::class, 'store']);
 });
+
+// Product units — standalone CRUD
+$router->group('/api/product-units', function (Router $r) {
+    $r->get('/{id}',    [ProductUnitController::class, 'show']);
+    $r->put('/{id}',    [ProductUnitController::class, 'update']);
+    $r->delete('/{id}', [ProductUnitController::class, 'destroy']);
+});
+
+// Barcode lookup (unit-aware) — replaces the POS-only barcode endpoint
+$router->get('/api/barcode/{code}', [ProductUnitController::class, 'barcodeLookup']);
 
 // Batches
 $router->group('/api/batches', function (Router $r) {

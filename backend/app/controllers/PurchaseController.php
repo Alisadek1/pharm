@@ -84,6 +84,10 @@ class PurchaseController
             Response::validationError($validator->errors());
         }
 
+        if (empty($body['supplier_id'])) {
+            Response::validationError(['supplier_id' => ['Supplier is required']]);
+        }
+
         $items = is_string($body['items']) ? json_decode($body['items'], true) : $body['items'];
 
         if (!is_array($items) || empty($items)) {
@@ -162,7 +166,7 @@ class PurchaseController
             // Load pricing settings once for auto-pricing
             $pricingSettings = $db->query("SELECT `key`, `value` FROM settings WHERE `key` LIKE 'pricing_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
 
-            foreach ($items as $item) {
+            foreach ($items as $idx => $item) {
                 $medicineId  = (int)($item['medicine_id'] ?? 0);
                 $batchNum    = trim($item['batch_number'] ?? '');
                 $qty         = (int)($item['quantity'] ?? 0);
@@ -175,8 +179,31 @@ class PurchaseController
                 $mfgDate     = !empty($item['manufacturing_date']) ? $item['manufacturing_date'] : null;
 
                 if ($medicineId <= 0 || $qty <= 0) {
-                    continue;
+                    Response::error('Invalid medicine_id or quantity at item ' . ($idx + 1));
                 }
+                if ($purchPrice < 0 || $publicPrice < 0) {
+                    Response::error('Prices cannot be negative at item ' . ($idx + 1));
+                }
+                if ($itemTaxRate < 0 || $itemTaxRate > 100) {
+                    Response::error('Tax rate must be between 0 and 100 at item ' . ($idx + 1));
+                }
+
+                // Resolve purchase unit (convert received qty to base units)
+                $purchUnitId       = (int)($item['unit_id'] ?? 0);
+                $purchUnitSnapshot = null;
+                $purchFactor       = 1.0;
+                if ($purchUnitId > 0) {
+                    $ur = $db->prepare("SELECT unit_name, conversion_factor FROM product_units WHERE id = ? AND medicine_id = ? AND is_active = 1");
+                    $ur->execute([$purchUnitId, $medicineId]);
+                    $ur = $ur->fetch();
+                    if ($ur) {
+                        $purchUnitSnapshot = $ur['unit_name'];
+                        $purchFactor       = (float)$ur['conversion_factor'];
+                    } else {
+                        $purchUnitId = 0;
+                    }
+                }
+                $baseQty = (int)round($qty * $purchFactor);
 
                 // Auto-pricing: override selling price if auto-pricing is enabled
                 if (($pricingSettings['pricing_auto_enabled'] ?? '0') === '1') {
@@ -200,7 +227,7 @@ class PurchaseController
                     if ($existing) {
                         $batchId = $existing['id'];
                         $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                           ->execute([$qty, $batchId]);
+                           ->execute([$baseQty, $batchId]);
                     } else {
                         $batchStmt = $db->prepare("
                             INSERT INTO medicine_batches (medicine_id, supplier_id, batch_number, manufacturing_date,
@@ -216,8 +243,8 @@ class PurchaseController
                             $purchPrice,
                             $sellPrice,
                             $publicPrice,
-                            $qty,
-                            $qty,
+                            $baseQty,
+                            $baseQty,
                             $user['id'],
                         ]);
                         $batchId = (int)$db->lastInsertId();
@@ -231,8 +258,9 @@ class PurchaseController
                 $db->prepare("
                     INSERT INTO purchase_items (purchase_id, medicine_id, batch_id, batch_number,
                         expiry_date, quantity, purchase_price, selling_price, public_price,
-                        tax_rate, tax_amount, remaining_quantity, subtotal)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        tax_rate, tax_amount, remaining_quantity, subtotal,
+                        unit_id, unit_name_snapshot, conversion_factor)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ")->execute([
                     $purchaseId,
                     $medicineId,
@@ -247,6 +275,9 @@ class PurchaseController
                     $itemTaxAmt,
                     $qty,
                     round($qty * $purchPrice, 3),
+                    $purchUnitId ?: null,
+                    $purchUnitSnapshot,
+                    $purchFactor,
                 ]);
             }
 
@@ -308,33 +339,107 @@ class PurchaseController
             Response::notFound('Purchase not found');
         }
 
-        if ($purchase['status'] === 'received') {
-            Response::error('Cannot edit a received purchase. Create a return instead.', 409);
-        }
-
-        // Only allow editing notes, paid_amount, status
-        $oldDue = (float)$purchase['due_amount'];
-        $paid   = (float)($body['paid_amount'] ?? $purchase['paid_amount']);
-        $due    = max(0, (float)$purchase['total'] - $paid);
+        // Allow editing: supplier, date, notes, paid_amount, status
+        // Status cannot be changed away from 'received' (inventory already applied)
+        $isReceived   = $purchase['status'] === 'received';
+        $supplierId   = !empty($body['supplier_id']) ? (int)$body['supplier_id'] : ($purchase['supplier_id'] ?? null);
+        $purchaseDate = !empty($body['purchase_date']) ? $body['purchase_date'] : $purchase['purchase_date'];
+        // Lock status for received purchases — only allow notes/payment edits
+        $newStatus    = $isReceived ? 'received' : ($body['status'] ?? $purchase['status']);
+        $oldDue       = (float)$purchase['due_amount'];
+        $paid         = (float)($body['paid_amount'] ?? $purchase['paid_amount']);
+        $due          = max(0, (float)$purchase['total'] - $paid);
 
         $db->prepare("
-            UPDATE purchases SET notes=?, paid_amount=?, due_amount=?,
+            UPDATE purchases SET supplier_id=?, purchase_date=?, notes=?, paid_amount=?, due_amount=?,
                 payment_status=?, status=?
             WHERE id = ?
         ")->execute([
+            $supplierId,
+            $purchaseDate,
             trim($body['notes'] ?? $purchase['notes']),
             round($paid, 3),
             round($due, 3),
             $due > 0 ? ($paid > 0 ? 'partial' : 'unpaid') : 'paid',
-            $body['status'] ?? $purchase['status'],
+            $newStatus,
             $id,
         ]);
 
         // Sync supplier balance: adjust by the change in due_amount
         $dueDelta = round($due - $oldDue, 3);
-        if ($dueDelta !== 0.0 && !empty($purchase['supplier_id'])) {
+        if ($dueDelta !== 0.0 && !empty($supplierId)) {
             $db->prepare("UPDATE suppliers SET balance = GREATEST(0, balance + ?) WHERE id = ?")
-               ->execute([$dueDelta, (int)$purchase['supplier_id']]);
+               ->execute([$dueDelta, $supplierId]);
+        }
+
+        // Ordered → Received transition: create batches + update inventory
+        if ($newStatus === 'received' && $purchase['status'] !== 'received') {
+            $pricingSettings = $db->query("SELECT `key`, `value` FROM settings WHERE `key` LIKE 'pricing_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+            $itemsStmt = $db->prepare("SELECT * FROM purchase_items WHERE purchase_id = ?");
+            $itemsStmt->execute([$id]);
+            $purchaseItems = $itemsStmt->fetchAll();
+
+            foreach ($purchaseItems as $item) {
+                $medicineId  = (int)$item['medicine_id'];
+                $batchNum    = $item['batch_number'] ?: null;
+                $qty         = (int)$item['quantity'];
+                $purchPrice  = (float)$item['purchase_price'];
+                $publicPrice = (float)$item['public_price'];
+                $sellPrice   = (float)$item['selling_price'];
+                $expiryDate  = !empty($item['expiry_date']) ? $item['expiry_date'] : null;
+                $purchFactor = (float)($item['conversion_factor'] ?? 1);
+                $baseQty     = (int)round($qty * $purchFactor);
+
+                if ($medicineId <= 0 || $qty <= 0) continue;
+
+                if (($pricingSettings['pricing_auto_enabled'] ?? '0') === '1') {
+                    $sellPrice = $this->applyPricingFormula($purchPrice, $pricingSettings);
+                }
+
+                // Find or create batch
+                if (!empty($batchNum)) {
+                    $existBatch = $db->prepare("SELECT id FROM medicine_batches WHERE medicine_id = ? AND batch_number = ?");
+                    $existBatch->execute([$medicineId, $batchNum]);
+                } else {
+                    $existBatch = $db->prepare("SELECT id FROM medicine_batches WHERE medicine_id = ? AND (expiry_date = ? OR expiry_date IS NULL) ORDER BY id DESC LIMIT 1");
+                    $existBatch->execute([$medicineId, $expiryDate]);
+                }
+                $existing = $existBatch->fetch();
+
+                if ($existing) {
+                    $batchId = $existing['id'];
+                    $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
+                       ->execute([$baseQty, $batchId]);
+                } else {
+                    $batchStmt = $db->prepare("
+                        INSERT INTO medicine_batches (medicine_id, supplier_id, batch_number, manufacturing_date,
+                            expiry_date, purchase_price, selling_price, public_price, quantity, initial_quantity, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $batchStmt->execute([
+                        $medicineId,
+                        $supplierId,
+                        $batchNum ?: 'RCV-' . date('Ymd-His') . '-' . $medicineId,
+                        $item['manufacturing_date'] ?? null,
+                        $expiryDate,
+                        $purchPrice,
+                        $sellPrice,
+                        $publicPrice,
+                        $baseQty,
+                        $baseQty,
+                        $user['id'],
+                    ]);
+                    $batchId = (int)$db->lastInsertId();
+                }
+
+                // Link batch to purchase_items row
+                $db->prepare("UPDATE purchase_items SET batch_id = ?, remaining_quantity = quantity WHERE purchase_id = ? AND medicine_id = ? AND (batch_id IS NULL OR batch_id = 0)")
+                   ->execute([$batchId, $id, $medicineId]);
+
+                // Update medicine default prices
+                $db->prepare("UPDATE medicines SET purchase_price = ?, selling_price = ?, public_price = ? WHERE id = ?")
+                   ->execute([$purchPrice, $sellPrice, $publicPrice, $medicineId]);
+            }
         }
 
         $updated = $this->getById($db, $id);

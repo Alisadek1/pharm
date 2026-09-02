@@ -3,8 +3,8 @@ import {
   BuildingStorefrontIcon, CurrencyDollarIcon, DocumentTextIcon,
   PrinterIcon, ServerIcon, PhotoIcon, CalculatorIcon, ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline'
-import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
+import { useSettings } from '../../context/SettingsContext'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { useTranslation } from 'react-i18next'
@@ -36,21 +36,21 @@ function Field({ label, help, children }) {
 export default function SettingsPage() {
   const { t } = useTranslation()
   const { can } = useAuth()
-  const { get, loading } = useApi()
+  const { settings: globalSettings, loading, refreshSettings } = useSettings()
   const [tab, setTab] = useState('pharmacy')
+  // Local copy for editing — diverges from global until the user saves
   const [settings, setSettings] = useState({})
   const [saving, setSaving] = useState(false)
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
   const logoRef = useRef(null)
 
+  // Populate local edit state from context whenever the global settings load/refresh
   useEffect(() => {
-    get('/api/settings').then(res => {
-      const s = {}
-      ;(res.data || []).forEach(item => { s[item.key] = item.value })
-      setSettings(s)
-    })
-  }, [])
+    if (!loading && Object.keys(globalSettings).length > 0) {
+      setSettings(globalSettings)
+    }
+  }, [globalSettings, loading])
 
   const set = (key, value) => setSettings(s => ({ ...s, [key]: value }))
 
@@ -68,6 +68,8 @@ export default function SettingsPage() {
       Object.entries(settings).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
       if (logoFile) fd.append('logo', logoFile)
       await api.post('/api/settings', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      // Propagate changes to the global context so all other pages update immediately
+      await refreshSettings()
       toast.success(t('settings.saved'))
       setLogoFile(null)
     } catch (err) {

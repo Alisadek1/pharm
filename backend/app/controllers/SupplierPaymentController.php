@@ -65,6 +65,18 @@ class SupplierPaymentController
 
         Database::beginTransaction();
         try {
+            // Lock row and verify amount does not exceed outstanding balance
+            $balRow = $db->prepare("SELECT balance FROM suppliers WHERE id = ? FOR UPDATE");
+            $balRow->execute([$supplierId]);
+            $currentBalance = (float)$balRow->fetchColumn();
+            if ($amount > $currentBalance + 0.001) {
+                Database::rollBack();
+                Response::error(
+                    "Payment amount ({$amount}) exceeds outstanding balance ({$currentBalance})",
+                    422
+                );
+            }
+
             $db->prepare("
                 INSERT INTO supplier_payments (supplier_id, user_id, amount, payment_date, payment_method, notes)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -77,7 +89,7 @@ class SupplierPaymentController
                 trim($body['notes'] ?? ''),
             ]);
 
-            $db->prepare("UPDATE suppliers SET balance = GREATEST(0, balance - ?) WHERE id = ?")
+            $db->prepare("UPDATE suppliers SET balance = balance - ? WHERE id = ?")
                ->execute([$amount, $supplierId]);
 
             Database::commit();

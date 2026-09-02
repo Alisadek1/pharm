@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { EyeIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { EyeIcon, ArrowUturnLeftIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 
 function toWaPhone(phone) {
@@ -23,18 +23,37 @@ export default function SalesPage() {
   const { can } = useAuth()
   const { get, loading } = useApi()
   const pg = usePagination()
-  const [search, setSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [payFilter, setPayFilter] = useState('')
-  const [rows, setRows] = useState([])
+  const [search, setSearch]               = useState('')
+  const [dateFrom, setDateFrom]           = useState('')
+  const [dateTo, setDateTo]               = useState('')
+  const [payFilter, setPayFilter]         = useState('')
+  const [productSearch, setProductSearch] = useState('')
+  const [productInput, setProductInput]   = useState('')
+  const [rows, setRows]                   = useState([])
+  const productDebounceRef                = useRef(null)
 
   const load = useCallback(() => {
     get('/api/sales', {
       page: pg.page, per_page: pg.perPage, search,
       date_from: dateFrom, date_to: dateTo, payment_method: payFilter,
+      product_search: productSearch,
     }).then(res => { setRows(res.data || []); pg.updateMeta(res.meta) })
-  }, [pg.page, pg.perPage, search, dateFrom, dateTo, payFilter])
+  }, [pg.page, pg.perPage, search, dateFrom, dateTo, payFilter, productSearch])
+
+  const handleProductInput = (val) => {
+    setProductInput(val)
+    clearTimeout(productDebounceRef.current)
+    productDebounceRef.current = setTimeout(() => {
+      setProductSearch(val)
+      pg.setPage(1)
+    }, 400)
+  }
+
+  const clearProductSearch = () => {
+    setProductInput('')
+    setProductSearch('')
+    pg.setPage(1)
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -52,6 +71,27 @@ export default function SalesPage() {
         )}
       </div>
 
+      {/* Product search */}
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={productInput}
+          onChange={e => handleProductInput(e.target.value)}
+          placeholder={t('sales.product_search_placeholder')}
+          className="input ps-9 pe-8 w-full"
+        />
+        {productInput && (
+          <button
+            type="button"
+            onClick={clearProductSearch}
+            className="absolute end-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-3 items-end">
         <SearchInput value={search} onChange={v => { setSearch(v); pg.setPage(1) }} placeholder={t('common.search')} className="max-w-xs" />
@@ -66,7 +106,7 @@ export default function SalesPage() {
         <div>
           <label className="label text-xs">{t('sales.col_payment')}</label>
           <select value={payFilter} onChange={e => { setPayFilter(e.target.value); pg.setPage(1) }} className="input text-sm">
-            <option value="">{t('batches.filter_all')}</option>
+            <option value="">{t('common.all')}</option>
             <option value="cash">{t('payment.cash')}</option>
             <option value="visa">{t('payment.visa')}</option>
             <option value="wallet">{t('payment.wallet')}</option>
@@ -77,6 +117,12 @@ export default function SalesPage() {
           <button onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPayFilter('') }} className="btn-secondary btn-sm self-end">{t('common.clear')}</button>
         )}
       </div>
+
+      {productSearch && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 -mt-2">
+          {t('sales.product_search_count', { count: pg.total, query: productSearch })}
+        </p>
+      )}
 
       <div className="card">
         {loading && !rows.length ? <TableSkeleton rows={8} cols={7} /> : (
@@ -99,7 +145,18 @@ export default function SalesPage() {
                   const s = statusLabel(row.status)
                   return (
                     <tr key={row.id}>
-                      <td className="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400">{row.invoice_number}</td>
+                      <td>
+                        <span className="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400">{row.invoice_number}</span>
+                        {row.matched_items?.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {row.matched_items.map((mi, i) => (
+                              <p key={i} className="text-xs text-amber-600 dark:text-amber-400">
+                                {mi.medicine_name}{mi.quantity > 0 ? ` × ${mi.quantity}` : ''}{mi.unit_name ? ` ${mi.unit_name}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td>{row.customer_name || <span className="text-gray-400">{t('sales.walk_in')}</span>}</td>
                       <td className="text-sm">{formatDateTime(row.created_at)}</td>
                       <td className="text-center">{row.items_count}</td>
@@ -133,7 +190,13 @@ export default function SalesPage() {
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={8} className="text-center text-gray-400 py-12">{t('sales.no_sales')}</td></tr>}
+                {!rows.length && !loading && (
+                  <tr><td colSpan={8} className="text-center text-gray-400 py-12">
+                    {productSearch
+                      ? t('sales.no_product_match', { query: productSearch })
+                      : t('sales.no_sales')}
+                  </td></tr>
+                )}
               </tbody>
               {rows.length > 0 && (
                 <tfoot>

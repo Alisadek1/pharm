@@ -139,7 +139,7 @@ export default function NotificationsPage() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        {[['all', t('batches.filter_all')], ['unread', t('notifications.unread')]].map(([v, l]) => (
+        {[['all', t('common.all')], ['unread', t('notifications.unread')]].map(([v, l]) => (
           <button key={v} onClick={() => { setFilter(v); pg.setPage(1) }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === v ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
             {l}

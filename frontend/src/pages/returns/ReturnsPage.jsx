@@ -307,7 +307,7 @@ export default function ReturnsPage() {
   }
 
   const TYPE_FILTERS = [
-    { value: '', label: t('batches.filter_all') },
+    { value: '', label: t('common.all') },
     { value: 'sale', label: t('returns.type_sale') },
     { value: 'purchase', label: t('returns.type_purchase') },
   ]

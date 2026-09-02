@@ -1,32 +1,136 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline'
+import { AdjustmentsHorizontalIcon, ChevronDownIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useApi, usePagination } from '../../hooks/useApi'
 import Modal from '../../components/ui/Modal'
+import StockDisplay from '../../components/ui/StockDisplay'
+import PriceDisplay from '../../components/ui/PriceDisplay'
 import Pagination from '../../components/ui/Pagination'
 import SearchInput from '../../components/ui/SearchInput'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../context/AuthContext'
-import { formatCurrency, stockStatus, expiryStatus } from '../../utils/format'
+import { formatCurrency, stockStatus } from '../../utils/format'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
-function AdjustForm({ medicines, onSubmit, loading }) {
+function MedicineCombobox({ value, onChange }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState({ medicine_id: '', batch_id: '', type: 'add', quantity: '', reason: '', notes: '' })
-  const [medBatches, setMedBatches] = useState([])
   const { get } = useApi()
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const wrapRef = useRef(null)
+  const listRef = useRef(null)
+  const timer = useRef(null)
 
-  const handleMedChange = async (id) => {
-    set('medicine_id', id); set('batch_id', '')
-    if (id) {
-      const res = await get(`/api/medicines/${id}/batches`)
-      setMedBatches(res.data || [])
-    } else {
-      setMedBatches([])
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false); setActiveIndex(-1)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  useEffect(() => {
+    if (activeIndex >= 0 && listRef.current) {
+      listRef.current.children[activeIndex]?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIndex])
+
+  const search = useCallback(async (q) => {
+    if (!q.trim()) { setResults([]); setOpen(false); return }
+    setSearching(true)
+    try {
+      const res = await get('/api/medicines/search', { q, limit: 10 })
+      setResults(res.data || [])
+      setOpen(true)
+      setActiveIndex(-1)
+    } catch { setResults([]) } finally { setSearching(false) }
+  }, [get])
+
+  const handleChange = (e) => {
+    const q = e.target.value
+    setQuery(q)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => search(q), 200)
+  }
+
+  const select = (med) => {
+    onChange(String(med.id))
+    setQuery(med.name)
+    setOpen(false)
+    setActiveIndex(-1)
+  }
+
+  const handleKeyDown = (e) => {
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); setActiveIndex(i => Math.min(i + 1, results.length - 1)); break
+      case 'ArrowUp':   e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); break
+      case 'Enter':
+        e.preventDefault()
+        if (open && activeIndex >= 0 && results[activeIndex]) select(results[activeIndex])
+        else { clearTimeout(timer.current); search(query) }
+        break
+      case 'Escape': setOpen(false); setActiveIndex(-1); break
     }
   }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative">
+        <input
+          value={query}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => query && results.length && setOpen(true)}
+          placeholder={t('purchases.search_placeholder')}
+          className="input w-full pe-8"
+          autoComplete="off"
+        />
+        {searching
+          ? <svg className="absolute end-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          : <ChevronDownIcon className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        }
+      </div>
+      {open && (
+        <div className="absolute z-40 mt-1 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl">
+          {results.length > 0 ? (
+            <div ref={listRef}>
+              {results.map((m, i) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onMouseDown={() => select(m)}
+                  className={`w-full text-start px-3 py-2 text-sm flex items-center gap-2 border-b border-gray-50 dark:border-gray-700 last:border-0 transition-colors ${
+                    i === activeIndex
+                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="flex-1 font-medium">{m.name}</span>
+                  {String(m.id) === String(value) && (
+                    <CheckIcon className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="px-3 py-3 text-sm text-gray-400 text-center">{t('common.no_results')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AdjustForm({ onSubmit, loading }) {
+  const { t } = useTranslation()
+  const [form, setForm] = useState({ medicine_id: '', type: 'add', quantity: '', reason: '', notes: '' })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -40,20 +144,8 @@ function AdjustForm({ medicines, onSubmit, loading }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="label">{t('inventory.col_medicine')} *</label>
-        <select value={form.medicine_id} onChange={e => handleMedChange(e.target.value)} className="input" required>
-          <option value="">{t('common.select')}</option>
-          {medicines.map(m => <option key={m.id} value={m.id}>{m.name} ({t('inventory.col_stock')}: {m.current_stock})</option>)}
-        </select>
+        <MedicineCombobox value={form.medicine_id} onChange={id => set('medicine_id', id)} />
       </div>
-      {medBatches.length > 0 && (
-        <div>
-          <label className="label">{t('inventory.batch')} ({t('common.optional_label')})</label>
-          <select value={form.batch_id} onChange={e => set('batch_id', e.target.value)} className="input">
-            <option value="">{t('inventory.all_batches')}</option>
-            {medBatches.map(b => <option key={b.id} value={b.id}>{b.batch_number} — {t('inventory.col_quantity')}: {b.quantity} — {b.expiry_date}</option>)}
-          </select>
-        </div>
-      )}
       <div>
         <label className="label">{t('inventory.adj_type')} *</label>
         <div className="grid grid-cols-3 gap-2">
@@ -97,7 +189,6 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState(searchParams.get('filter') || '')
   const [rows, setRows] = useState([])
-  const [medicines, setMedicines] = useState([])
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
 
@@ -109,10 +200,6 @@ export default function InventoryPage() {
 
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    get('/api/medicines', { per_page: 500, is_active: 1 }).then(res => setMedicines(res.data || []))
-  }, [])
-
   const handleAdjust = async (form) => {
     setSaving(true)
     try {
@@ -123,12 +210,10 @@ export default function InventoryPage() {
   }
 
   const FILTERS = [
-    { value: '', label: t('batches.filter_all') },
+    { value: '', label: t('common.all') },
     { value: 'low_stock', label: t('inventory.filter_low') },
     { value: 'out_of_stock', label: t('inventory.filter_out') },
     { value: 'in_stock', label: t('inventory.filter_in') },
-    { value: 'near_expiry', label: t('batches.filter_expiring') },
-    { value: 'expired', label: t('batches.filter_expired') },
   ]
 
   return (
@@ -170,7 +255,6 @@ export default function InventoryPage() {
                   <th>{t('inventory.col_public_price')}</th>
                   <th>{t('inventory.col_stock')}</th>
                   <th>{t('inventory.col_min_stock')}</th>
-                  <th>{t('batches.col_expiry')}</th>
                   <th>{t('inventory.col_value_pharmacist')}</th>
                   <th>{t('inventory.col_value_public')}</th>
                   <th>{t('common.status')}</th>
@@ -181,7 +265,6 @@ export default function InventoryPage() {
                   const s = stockStatus(row.current_stock, row.minimum_stock)
                   const value = parseFloat(row.current_stock) * parseFloat(row.purchase_price)
                   const valuePublic = parseFloat(row.current_stock) * parseFloat(row.public_price || row.selling_price)
-                  const exp = row.nearest_expiry ? expiryStatus(row.nearest_expiry) : null
                   return (
                     <tr key={row.id}>
                       <td>
@@ -190,24 +273,19 @@ export default function InventoryPage() {
                       </td>
                       <td className="font-mono text-xs text-gray-500">{row.sku}</td>
                       <td>{row.category_name || '—'}</td>
-                      <td>{formatCurrency(row.purchase_price)}</td>
-                      <td className="font-semibold">{formatCurrency(row.public_price || row.selling_price)}</td>
-                      <td className="font-bold text-lg">{row.current_stock}</td>
+                      <td><PriceDisplay price={row.purchase_price} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /></td>
+                      <td className="font-semibold"><PriceDisplay price={row.public_price || row.selling_price} unitName={row.default_purchase_unit_name} unitNameAr={row.default_purchase_unit_name_ar} /></td>
+                      <td><StockDisplay baseQty={row.current_stock} units={row.packaging} /></td>
                       <td className="text-gray-500">{row.minimum_stock}</td>
-                      <td>{exp ? <span className={`badge badge-${exp.color}`}>{exp.label}</span> : '—'}</td>
                       <td>{formatCurrency(value)}</td>
                       <td className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(valuePublic)}</td>
                       <td>
-                        <div className="flex flex-col gap-1">
-                          <span className={`badge badge-${s.color}`}>{s.label}</span>
-                          {row.expired_batches > 0 && <span className="badge badge-red">{row.expired_batches} expired</span>}
-                          {row.near_expiry_batches > 0 && <span className="badge badge-yellow">{row.near_expiry_batches} near expiry</span>}
-                        </div>
+                        <span className={`badge badge-${s.color}`}>{s.label}</span>
                       </td>
                     </tr>
                   )
                 })}
-                {!rows.length && !loading && <tr><td colSpan={11} className="text-center text-gray-400 py-12">{t('inventory.no_inventory')}</td></tr>}
+                {!rows.length && !loading && <tr><td colSpan={10} className="text-center text-gray-400 py-12">{t('inventory.no_inventory')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -216,7 +294,7 @@ export default function InventoryPage() {
       </div>
 
       <Modal open={modal === 'adjust'} onClose={() => setModal(null)} title={t('inventory.adjust')} size="md">
-        <AdjustForm medicines={medicines} onSubmit={handleAdjust} loading={saving} />
+        <AdjustForm onSubmit={handleAdjust} loading={saving} />
       </Modal>
     </div>
   )
