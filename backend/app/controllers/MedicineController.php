@@ -65,7 +65,7 @@ class MedicineController
             LEFT JOIN product_units pu ON pu.medicine_id = m.id AND pu.is_active = 1
             WHERE {$whereStr}
             GROUP BY m.id
-            ORDER BY m.name ASC
+            ORDER BY CASE WHEN current_stock > 0 THEN 0 ELSE 1 END ASC, m.name ASC
             LIMIT ? OFFSET ?
         ");
         $stmt->execute([...$binds, $perPage, $offset]);
@@ -105,14 +105,29 @@ class MedicineController
             }
         }
 
-        // Auto-generate SKU (local barcode) — never trust client value
-        $sku = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
-
-        // Check duplicate SKU
-        $stmt = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
-        $stmt->execute([$sku]);
-        if ($stmt->fetch()) {
-            $sku = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
+        // SKU: use client-supplied value or auto-generate
+        $clientSku = trim($body['sku'] ?? '');
+        if ($clientSku !== '') {
+            $stmt = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
+            $stmt->execute([$clientSku]);
+            if ($stmt->fetch()) {
+                Response::error('Local barcode (SKU) already in use', 409);
+            }
+            $sku = $clientSku;
+        } else {
+            $sku = null;
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                $candidate = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
+                $stmt = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
+                $stmt->execute([$candidate]);
+                if (!$stmt->fetch()) {
+                    $sku = $candidate;
+                    break;
+                }
+            }
+            if ($sku === null) {
+                Response::error('Unable to generate a unique SKU — please try again', 500);
+            }
         }
 
         $image = null;
@@ -129,13 +144,19 @@ class MedicineController
             ? $body['product_type']
             : 'other';
 
+        $stripsPerBox    = isset($body['strips_per_box'])    && $body['strips_per_box']    !== '' ? (int)$body['strips_per_box']    : null;
+        $tabletsPerStrip = isset($body['tablets_per_strip']) && $body['tablets_per_strip'] !== '' ? (int)$body['tablets_per_strip'] : null;
+        if ($stripsPerBox !== null && $stripsPerBox <= 0)    $stripsPerBox    = null;
+        if ($tabletsPerStrip !== null && $tabletsPerStrip <= 0) $tabletsPerStrip = null;
+
         $stmt = $db->prepare("
             INSERT INTO medicines (
                 category_id, company_id, name, name_ar, barcode, sku,
                 dosage_form, product_type, strength, unit,
+                strips_per_box, tablets_per_strip,
                 purchase_price, selling_price, public_price, minimum_stock,
                 prescription_required, controlled_drug, image, description, is_active, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -149,6 +170,8 @@ class MedicineController
             $productType,
             trim($body['strength'] ?? ''),
             trim($body['unit'] ?? 'Piece'),
+            $stripsPerBox,
+            $tabletsPerStrip,
             isset($body['purchase_price']) && $body['purchase_price'] !== '' ? (float)$body['purchase_price'] : 0.0,
             isset($body['public_price'])   && $body['public_price']   !== '' ? (float)$body['public_price']   : 0.0,
             isset($body['public_price'])   && $body['public_price']   !== '' ? (float)$body['public_price']   : 0.0,
@@ -163,15 +186,19 @@ class MedicineController
 
         $id = (int)$db->lastInsertId();
 
-        // Auto-seed a base product_unit so the medicine is immediately usable at POS
+        // Auto-seed base unit and, if strip data was supplied, the full 3-tier hierarchy
         try {
-            $unitName = trim($body['unit'] ?? 'Piece') ?: 'Piece';
-            $db->prepare("
-                INSERT INTO product_units
-                    (medicine_id, unit_name, unit_name_ar, unit_code, conversion_factor,
-                     is_base_unit, is_default_purchase, is_default_sale, is_active, sort_order)
-                VALUES (?, ?, '', ?, 1.000000, 1, 1, 1, 1, 0)
-            ")->execute([$id, $unitName, strtolower($unitName)]);
+            if ($stripsPerBox !== null && $tabletsPerStrip !== null && $stripsPerBox > 1) {
+                $this->upsertStripUnits($db, $id, $stripsPerBox, $tabletsPerStrip);
+            } else {
+                $unitName = trim($body['unit'] ?? 'Piece') ?: 'Piece';
+                $db->prepare("
+                    INSERT INTO product_units
+                        (medicine_id, unit_name, unit_name_ar, unit_code, conversion_factor,
+                         is_base_unit, is_default_purchase, is_default_sale, is_active, sort_order)
+                    VALUES (?, ?, '', ?, 1.000000, 1, 1, 1, 1, 0)
+                ")->execute([$id, $unitName, strtolower($unitName)]);
+            }
         } catch (Exception $e) {
             // Non-fatal — medicine created; admin can apply unit preset manually
         }
@@ -219,11 +246,26 @@ class MedicineController
             Response::validationError($validator->errors());
         }
 
-        if (!empty($body['barcode']) && $body['barcode'] !== $existing['barcode']) {
+        // Fix B1: allow clearing barcode by sending an empty string
+        $newBarcode = $existing['barcode'];
+        if (array_key_exists('barcode', $body)) {
+            $newBarcode = trim($body['barcode']) !== '' ? trim($body['barcode']) : null;
+        }
+        if ($newBarcode !== null && $newBarcode !== $existing['barcode']) {
             $stmt = $db->prepare("SELECT id FROM medicines WHERE barcode = ? AND id != ?");
-            $stmt->execute([trim($body['barcode']), $id]);
+            $stmt->execute([$newBarcode, $id]);
             if ($stmt->fetch()) {
                 Response::error('Barcode already exists', 409);
+            }
+        }
+
+        $newSku = $existing['sku'];
+        if (isset($body['sku']) && trim($body['sku']) !== '' && trim($body['sku']) !== $existing['sku']) {
+            $newSku = trim($body['sku']);
+            $stmt = $db->prepare("SELECT id FROM medicines WHERE sku = ? AND id != ?");
+            $stmt->execute([$newSku, $id]);
+            if ($stmt->fetch()) {
+                Response::error('Local barcode (SKU) already in use', 409);
             }
         }
 
@@ -250,10 +292,21 @@ class MedicineController
             ? $body['product_type']
             : ($existing['product_type'] ?? 'other');
 
+        // Resolve strip packaging fields
+        $newStripsPerBox = array_key_exists('strips_per_box', $body)
+            ? (isset($body['strips_per_box']) && $body['strips_per_box'] !== '' ? (int)$body['strips_per_box'] : null)
+            : ($existing['strips_per_box'] ?? null);
+        $newTabletsPerStrip = array_key_exists('tablets_per_strip', $body)
+            ? (isset($body['tablets_per_strip']) && $body['tablets_per_strip'] !== '' ? (int)$body['tablets_per_strip'] : null)
+            : ($existing['tablets_per_strip'] ?? null);
+        if ($newStripsPerBox !== null && $newStripsPerBox <= 0)       $newStripsPerBox    = null;
+        if ($newTabletsPerStrip !== null && $newTabletsPerStrip <= 0) $newTabletsPerStrip = null;
+
         $db->prepare("
             UPDATE medicines SET
-                category_id=?, company_id=?, name=?, name_ar=?, barcode=?,
+                category_id=?, company_id=?, name=?, name_ar=?, barcode=?, sku=?,
                 dosage_form=?, product_type=?, strength=?, unit=?,
+                strips_per_box=?, tablets_per_strip=?,
                 purchase_price=?, selling_price=?, public_price=?,
                 minimum_stock=?, prescription_required=?, controlled_drug=?,
                 image=?, description=?, is_active=?
@@ -262,12 +315,15 @@ class MedicineController
             !empty($body['category_id']) ? (int)$body['category_id'] : null,
             !empty($body['company_id'])  ? (int)$body['company_id']  : null,
             trim($body['name']),
-            trim($body['name_ar'] ?? $existing['name_ar']),
-            !empty($body['barcode']) ? trim($body['barcode']) : $existing['barcode'],
-            trim($body['dosage_form'] ?? $existing['dosage_form']),
+            trim($body['name_ar'] ?? $existing['name_ar'] ?? ''),
+            $newBarcode,
+            $newSku,
+            trim($body['dosage_form'] ?? $existing['dosage_form'] ?? ''),
             $productType,
-            trim($body['strength'] ?? $existing['strength']),
-            trim($body['unit'] ?? $existing['unit']),
+            trim($body['strength'] ?? $existing['strength'] ?? ''),
+            trim($body['unit'] ?? $existing['unit'] ?? ''),
+            $newStripsPerBox,
+            $newTabletsPerStrip,
             $newPurchasePrice,
             $newPublicPrice,
             $newPublicPrice,
@@ -275,10 +331,21 @@ class MedicineController
             isset($body['prescription_required']) ? (int)(bool)$body['prescription_required'] : $existing['prescription_required'],
             isset($body['controlled_drug'])        ? (int)(bool)$body['controlled_drug']        : $existing['controlled_drug'],
             $image,
-            trim($body['description'] ?? $existing['description']),
+            trim($body['description'] ?? $existing['description'] ?? ''),
             isset($body['is_active']) ? (int)(bool)$body['is_active'] : $existing['is_active'],
             $id,
         ]);
+
+        // Upsert Strip/Box units when strip configuration changed
+        $stripsChanged = ($newStripsPerBox !== ((int)($existing['strips_per_box'] ?? 0) ?: null))
+                      || ($newTabletsPerStrip !== ((int)($existing['tablets_per_strip'] ?? 0) ?: null));
+        if ($stripsChanged && $newStripsPerBox !== null && $newTabletsPerStrip !== null && $newStripsPerBox > 1) {
+            try {
+                $this->upsertStripUnits($db, $id, $newStripsPerBox, $newTabletsPerStrip);
+            } catch (Exception $e) {
+                // Non-fatal
+            }
+        }
 
         // Record price change if prices actually changed
         $oldPurchasePrice = (float)$existing['purchase_price'];
@@ -321,10 +388,29 @@ class MedicineController
             Response::notFound('Medicine not found');
         }
 
-        // Soft delete
-        $db->prepare("UPDATE medicines SET is_active = 0 WHERE id = ?")->execute([$id]);
-        Logger::activity($user['id'], 'delete', 'medicines', $id, "Deactivated medicine: {$medicine['name']}");
-        Response::success(null, 'Medicine deactivated successfully');
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM sale_items WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM purchase_items WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM return_items WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM inventory_adjustment_request_items WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM inventory_adjustments WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM inventory_count_items WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM medicine_price_history WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM medicine_batches WHERE medicine_id = ?")->execute([$id]);
+            // NULL out self-referential parent_unit_id before deleting to avoid FK cycle
+            $db->prepare("UPDATE product_units SET parent_unit_id = NULL WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM product_units WHERE medicine_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM medicines WHERE id = ?")->execute([$id]);
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error('Failed to delete medicine: ' . $e->getMessage(), 500);
+            return;
+        }
+
+        Logger::activity($user['id'], 'delete', 'medicines', $id, "Deleted medicine: {$medicine['name']}");
+        Response::success(null, 'Medicine deleted successfully');
     }
 
     public function batches(array $params): void
@@ -382,12 +468,18 @@ class MedicineController
             FROM medicines m
             LEFT JOIN categories c ON c.id = m.category_id
             WHERE m.is_active = 1
-              AND (m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ? OR m.sku LIKE ?)
+              AND (
+                  m.name LIKE ? OR m.name_ar LIKE ? OR m.barcode LIKE ? OR m.sku LIKE ?
+                  OR EXISTS (
+                      SELECT 1 FROM product_units pu
+                      WHERE pu.medicine_id = m.id AND pu.barcode LIKE ? AND pu.is_active = 1
+                  )
+              )
             ORDER BY m.name ASC
             LIMIT 20
         ");
         $q = "%{$query}%";
-        $stmt->execute([$q, $q, $q, $q]);
+        $stmt->execute([$q, $q, $q, $q, $q]);
 
         Response::success($stmt->fetchAll());
     }
@@ -504,7 +596,19 @@ class MedicineController
                     }
                 }
 
-                $sku  = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
+                // B6: 3-attempt SKU generation
+                $sku = null;
+                for ($attempt = 0; $attempt < 3; $attempt++) {
+                    $candidate = 'MED-' . strtoupper(bin2hex(random_bytes(4)));
+                    $chk = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
+                    $chk->execute([$candidate]);
+                    if (!$chk->fetch()) { $sku = $candidate; break; }
+                }
+                if ($sku === null) {
+                    $errors[] = "Row {$row}: could not generate unique SKU — skipped";
+                    continue;
+                }
+
                 $stmt = $db->prepare("
                     INSERT INTO medicines (name, barcode, sku, purchase_price, selling_price, public_price, minimum_stock, is_active, created_by)
                     VALUES (?, ?, ?, ?, ?, ?, 10, 1, ?)
@@ -518,6 +622,18 @@ class MedicineController
                     (float)$publicPrice,
                     $user['id'],
                 ]);
+                $medId = (int)$db->lastInsertId();
+
+                // B3: seed base product_units row so medicine is scannable at POS
+                try {
+                    $db->prepare("
+                        INSERT INTO product_units
+                            (medicine_id, unit_name, unit_name_ar, unit_code, conversion_factor,
+                             is_base_unit, is_default_purchase, is_default_sale, is_active, sort_order)
+                        VALUES (?, 'Piece', '', 'piece', 1.000000, 1, 1, 1, 1, 0)
+                    ")->execute([$medId]);
+                } catch (Exception $e) { /* non-fatal */ }
+
                 $imported++;
             }
 
@@ -624,6 +740,45 @@ class MedicineController
         $stmt->execute([$id]);
 
         Response::success($stmt->fetchAll());
+    }
+
+    private function upsertStripUnits(PDO $db, int $mid, int $strips, int $tablets): void
+    {
+        // Piece / Tablet — base unit (factor = 1)
+        $base = $db->prepare("SELECT id FROM product_units WHERE medicine_id = ? AND is_base_unit = 1 LIMIT 1");
+        $base->execute([$mid]);
+        $baseRow = $base->fetch();
+        if ($baseRow) {
+            $db->prepare("UPDATE product_units SET conversion_factor=1.000000, sort_order=0, is_active=1 WHERE id=?")->execute([(int)$baseRow['id']]);
+            $baseId = (int)$baseRow['id'];
+        } else {
+            $db->prepare("INSERT INTO product_units (medicine_id,unit_name,unit_code,conversion_factor,is_base_unit,is_default_purchase,is_default_sale,is_active,sort_order) VALUES (?,'Tablet','TAB',1.000000,1,0,0,1,0)")->execute([$mid]);
+            $baseId = (int)$db->lastInsertId();
+        }
+
+        // Strip — factor = tablets_per_strip
+        $stripFactor = (float)$tablets;
+        $stripRow = $db->prepare("SELECT id FROM product_units WHERE medicine_id = ? AND (LOWER(unit_code)='str' OR LOWER(unit_name) LIKE '%strip%') LIMIT 1");
+        $stripRow->execute([$mid]);
+        $strip = $stripRow->fetch();
+        if ($strip) {
+            $db->prepare("UPDATE product_units SET conversion_factor=?,parent_unit_id=?,contains_quantity=?,is_active=1,sort_order=1 WHERE id=?")->execute([$stripFactor, $baseId, $tablets, (int)$strip['id']]);
+            $stripId = (int)$strip['id'];
+        } else {
+            $db->prepare("INSERT INTO product_units (medicine_id,unit_name,unit_code,conversion_factor,parent_unit_id,contains_quantity,is_base_unit,is_default_purchase,is_default_sale,is_active,sort_order) VALUES (?,'Strip','STR',?,?,?,0,0,0,1,1)")->execute([$mid, $stripFactor, $baseId, $tablets]);
+            $stripId = (int)$db->lastInsertId();
+        }
+
+        // Box — factor = strips_per_box × tablets_per_strip
+        $boxFactor = (float)($strips * $tablets);
+        $boxRow = $db->prepare("SELECT id FROM product_units WHERE medicine_id = ? AND (LOWER(unit_code)='box' OR LOWER(unit_name) LIKE '%box%') LIMIT 1");
+        $boxRow->execute([$mid]);
+        $box = $boxRow->fetch();
+        if ($box) {
+            $db->prepare("UPDATE product_units SET conversion_factor=?,parent_unit_id=?,contains_quantity=?,is_default_purchase=1,is_default_sale=1,is_active=1,sort_order=2 WHERE id=?")->execute([$boxFactor, $stripId, $strips, (int)$box['id']]);
+        } else {
+            $db->prepare("INSERT INTO product_units (medicine_id,unit_name,unit_code,conversion_factor,parent_unit_id,contains_quantity,is_base_unit,is_default_purchase,is_default_sale,is_active,sort_order) VALUES (?,'Box','BOX',?,?,?,0,1,1,1,2)")->execute([$mid, $boxFactor, $stripId, $strips]);
+        }
     }
 
     private function getById(PDO $db, int $id): ?array

@@ -53,6 +53,7 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
     name:                  initial.name || '',
     name_ar:               initial.name_ar || '',
     barcode:               initial.barcode || '',
+    sku:                   initial.sku || '',
     category_id:           initial.category_id || '',
     company_id:            initial.company_id || '',
     minimum_stock:         initial.minimum_stock ?? 10,
@@ -63,12 +64,15 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
     dosage_form:           initial.dosage_form || '',
     strength:              initial.strength    || '',
   } : {
-    name: '', name_ar: '', barcode: '', category_id: '', company_id: '',
+    name: '', name_ar: '', barcode: '', sku: '', category_id: '', company_id: '',
     minimum_stock: 10, prescription_required: false, controlled_drug: false,
     is_active: true, description: '', dosage_form: '', strength: '',
   })
 
   const [isPiece, setIsPiece]               = useState(true)
+  const [hasStrips, setHasStrips]           = useState(false)
+  const [stripsPerBox, setStripsPerBox]     = useState('')
+  const [tabletsPerStrip, setTabletsPerStrip] = useState('')
   const [unitsPerBox, setUnitsPerBox]       = useState('')
   const [packagingDirty, setPackagingDirty] = useState(false)
   const [nameError, setNameError]           = useState('')
@@ -82,14 +86,42 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
 
   useEffect(() => {
     if (!initial?.id) return
+    // Use strips_per_box/tablets_per_strip from medicine data if available
+    if (initial.strips_per_box && initial.tablets_per_strip && Number(initial.strips_per_box) > 1) {
+      setIsPiece(false)
+      setHasStrips(true)
+      setStripsPerBox(String(initial.strips_per_box))
+      setTabletsPerStrip(String(initial.tablets_per_strip))
+      return
+    }
     api.get(`/api/medicines/${initial.id}/units`)
       .then(r => {
         const us = (r.data?.data ?? [])
           .sort((a, b) => parseFloat(b.conversion_factor) - parseFloat(a.conversion_factor))
+        // Check for Strip unit → 3-tier
+        const hasStripUnit = us.some(u => u.unit_name?.toLowerCase().includes('strip'))
+        if (hasStripUnit && us.length >= 3) {
+          const box   = us[0]
+          const strip = us.find(u => u.unit_name?.toLowerCase().includes('strip'))
+          const base  = us[us.length - 1]
+          if (box && strip && base) {
+            const spb = Math.round(parseFloat(box.conversion_factor) / parseFloat(strip.conversion_factor))
+            const tps = Math.round(parseFloat(strip.conversion_factor))
+            if (spb > 1 && tps > 1) {
+              setIsPiece(false)
+              setHasStrips(true)
+              setStripsPerBox(String(spb))
+              setTabletsPerStrip(String(tps))
+              return
+            }
+          }
+        }
+        // 2-tier (Piece + Box)
         if (us.length >= 2) {
           const n = Math.round(parseFloat(us[0].conversion_factor))
           if (n > 1) {
             setIsPiece(false)
+            setHasStrips(false)
             setUnitsPerBox(String(n))
           }
         }
@@ -109,12 +141,22 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
     Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''))
     if (imageFile) fd.append('image', imageFile)
 
-    const n = parseInt(unitsPerBox)
+    const n   = parseInt(unitsPerBox)
+    const spb = parseInt(stripsPerBox)
+    const tps = parseInt(tabletsPerStrip)
     let packagingConfig = null
+
     if (!initial || packagingDirty) {
-      packagingConfig = isPiece
-        ? { preset: 'piece' }
-        : { preset: 'box_unit', units_per_box: n > 1 ? n : 1 }
+      if (isPiece) {
+        packagingConfig = { preset: 'piece' }
+      } else if (hasStrips && spb > 1 && tps > 0) {
+        // Backend handles product_units inline; just send values in FormData
+        fd.append('strips_per_box', spb)
+        fd.append('tablets_per_strip', tps)
+        packagingConfig = null
+      } else {
+        packagingConfig = { preset: 'box_unit', units_per_box: n > 1 ? n : 1 }
+      }
     }
 
     onSubmit(fd, packagingConfig)
@@ -181,18 +223,9 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
           </div>
           <div>
             <label className="label">{t('medicines.local_barcode')}</label>
-            {isEdit ? (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 min-h-[38px]">
-                <LockClosedIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
-                <span className="flex-1 font-mono text-sm text-gray-600 dark:text-gray-300 select-all">{initial?.sku || '—'}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 min-h-[38px]">
-                <InformationCircleIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="text-sm text-blue-600 dark:text-blue-400">{t('medicines.local_barcode_pending')}</span>
-              </div>
-            )}
-            <p className="mt-1 text-xs text-gray-400">{t('medicines.local_barcode_auto')}</p>
+            <input value={form.sku} onChange={e => set('sku', e.target.value)}
+              className="input font-mono" placeholder={t('medicines.local_barcode_placeholder')} />
+            <p className="mt-1 text-xs text-gray-400">{t('medicines.local_barcode_hint')}</p>
           </div>
         </div>
       </div>
@@ -220,24 +253,74 @@ function MedicineForm({ initial, categories, companies, onSubmit, loading, onCan
             </div>
           </button>
 
-          {/* Box qty input — only when not piece */}
+          {/* Strip / no-strip when not piece */}
           {!isPiece && (
-            <div className="max-w-xs">
-              <label className="label">{t('medicines.units_per_box')}</label>
-              <input type="number" min="1" step="1" value={unitsPerBox}
-                onChange={e => { setUnitsPerBox(e.target.value); setPackagingDirty(true) }}
-                className="input" placeholder={t('medicines.units_per_box_hint')} />
-            </div>
-          )}
+            <>
+              {/* Has Strips toggle */}
+              <button
+                type="button"
+                onClick={() => { setHasStrips(v => !v); setPackagingDirty(true) }}
+                className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-colors ${hasStrips ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
+              >
+                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors ${hasStrips ? 'border-primary-500 bg-primary-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
+                  {hasStrips && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                      <path d="M1.5 5.5L4 8L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t('medicines.has_strips')}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('medicines.has_strips_hint')}</p>
+                </div>
+              </button>
 
-          {/* Preview */}
-          {!isPiece && n > 1 && (
-            <div className="rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-4">
-              <div className="flex items-center gap-2">
-                <CubeIcon className="w-4 h-4 text-primary-500 shrink-0" />
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">1 Box = {n} Units</span>
-              </div>
-            </div>
+              {hasStrips ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">{t('medicines.strips_per_box')}</label>
+                      <input type="number" min="2" step="1" value={stripsPerBox}
+                        onChange={e => { setStripsPerBox(e.target.value); setPackagingDirty(true) }}
+                        className="input" placeholder="e.g. 3" />
+                    </div>
+                    <div>
+                      <label className="label">{t('medicines.tablets_per_strip')}</label>
+                      <input type="number" min="1" step="1" value={tabletsPerStrip}
+                        onChange={e => { setTabletsPerStrip(e.target.value); setPackagingDirty(true) }}
+                        className="input" placeholder="e.g. 10" />
+                    </div>
+                  </div>
+                  {parseInt(stripsPerBox) > 1 && parseInt(tabletsPerStrip) > 0 && (
+                    <div className="rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-4">
+                      <div className="flex items-center gap-2">
+                        <CubeIcon className="w-4 h-4 text-primary-500 shrink-0" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          1 Box = {parseInt(stripsPerBox)} {t('medicines.strips_per_box').toLowerCase()} × {parseInt(tabletsPerStrip)} {t('medicines.tablets_per_strip').toLowerCase()} = <span className="text-primary-600 dark:text-primary-400">{parseInt(stripsPerBox) * parseInt(tabletsPerStrip)} {t('medicines.total_tablets')}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="max-w-xs">
+                    <label className="label">{t('medicines.units_per_box')}</label>
+                    <input type="number" min="1" step="1" value={unitsPerBox}
+                      onChange={e => { setUnitsPerBox(e.target.value); setPackagingDirty(true) }}
+                      className="input" placeholder={t('medicines.units_per_box_hint')} />
+                  </div>
+                  {parseInt(unitsPerBox) > 1 && (
+                    <div className="rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-4">
+                      <div className="flex items-center gap-2">
+                        <CubeIcon className="w-4 h-4 text-primary-500 shrink-0" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">1 Box = {parseInt(unitsPerBox)} Units</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -598,8 +681,22 @@ function UnitsTab({ medicine, canEdit }) {
 
   if (loading) return <div className="py-8 text-center text-sm text-gray-400">{t('common.loading')}</div>
 
+  const spb = parseInt(medicine?.strips_per_box)
+  const tps = parseInt(medicine?.tablets_per_strip)
+  const hasStripInfo = spb > 1 && tps > 0
+
   return (
     <div className="space-y-3">
+      {hasStripInfo && (
+        <div className="rounded-xl border border-primary-100 dark:border-primary-800 bg-primary-50/40 dark:bg-primary-900/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400 mb-2">{t('medicines.packaging_title')}</p>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div><p className="text-xs text-gray-500">{t('medicines.strips_per_box')}</p><p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{spb}</p></div>
+            <div><p className="text-xs text-gray-500">{t('medicines.tablets_per_strip')}</p><p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{tps}</p></div>
+            <div><p className="text-xs text-gray-500">{t('medicines.total_tablets')}</p><p className="text-lg font-bold text-primary-600 dark:text-primary-400 tabular-nums">{spb * tps}</p></div>
+          </div>
+        </div>
+      )}
       {units.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-700">
           <table className="w-full text-sm">
@@ -723,7 +820,7 @@ function UnitsTab({ medicine, canEdit }) {
               </div>
             </div>
             <div>
-              <label className="label text-xs">{t('medicines.barcode')}</label>
+              <label className="label text-xs">{t('medicines.unit_barcode')}</label>
               <input value={form.barcode} onChange={e => setF('barcode', e.target.value)} className="input input-sm font-mono" />
             </div>
             <div className="flex flex-wrap gap-4">
@@ -797,8 +894,33 @@ function PackagingView({ medicine }) {
   const stockUnits = sorted.map(u => ({ id: u.id, name: u.unit_name, factor: parseFloat(u.conversion_factor) }))
   const decomposed = decomposeStock(medicine.current_stock || 0, stockUnits)
 
+  const spb = parseInt(medicine.strips_per_box)
+  const tps = parseInt(medicine.tablets_per_strip)
+  const hasStripInfo = spb > 1 && tps > 0
+
   return (
     <div className="space-y-4">
+      {/* Strip packaging summary (read-only) */}
+      {hasStripInfo && (
+        <div className="rounded-xl border border-primary-100 dark:border-primary-800 bg-primary-50/40 dark:bg-primary-900/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400 mb-2">{t('medicines.packaging_title')}</p>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-xs text-gray-500">{t('medicines.strips_per_box')}</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{spb}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">{t('medicines.tablets_per_strip')}</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{tps}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">{t('medicines.total_tablets')}</p>
+              <p className="text-lg font-bold text-primary-600 dark:text-primary-400 tabular-nums">{spb * tps}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hierarchy cards */}
       <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
         {sorted.map((unit, idx) => {
@@ -1104,11 +1226,13 @@ export default function MedicinesPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      await del(`/api/medicines/${delItem.id}`)
+      await del(`/api/medicines/${delItem.id}`, { silent: true })
       toast.success(t('medicines.deactivated'))
       setDelItem(null)
       load()
-    } catch {} finally { setDeleting(false) }
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('common.delete_failed'))
+    } finally { setDeleting(false) }
   }
 
   const handleImport = async (e) => {

@@ -193,12 +193,19 @@ class PurchaseController
                 $purchUnitSnapshot = null;
                 $purchFactor       = 1.0;
                 if ($purchUnitId > 0) {
-                    $ur = $db->prepare("SELECT unit_name, conversion_factor FROM product_units WHERE id = ? AND medicine_id = ? AND is_active = 1");
+                    $ur = $db->prepare("SELECT unit_name, conversion_factor, barcode FROM product_units WHERE id = ? AND medicine_id = ? AND is_active = 1");
                     $ur->execute([$purchUnitId, $medicineId]);
                     $ur = $ur->fetch();
                     if ($ur) {
                         $purchUnitSnapshot = $ur['unit_name'];
                         $purchFactor       = (float)$ur['conversion_factor'];
+
+                        // Barcode capture: link a scanned barcode to this unit
+                        $scannedBarcode = trim($item['barcode'] ?? '');
+                        if ($scannedBarcode !== '') {
+                            $puc = new ProductUnitController();
+                            $puc->doAssignBarcode($db, $purchUnitId, $medicineId, $scannedBarcode, $ur['barcode'] ?? null);
+                        }
                     } else {
                         $purchUnitId = 0;
                     }

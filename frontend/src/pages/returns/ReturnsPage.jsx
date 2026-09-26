@@ -40,7 +40,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       const sale = res.data
       setInvoiceNum(sale.invoice_number || '')
       setSource(sale)
-      setSelectedItems((sale.items || []).map(it => ({ ...it, return_qty: 0, max_qty: parseInt(it.quantity) || 0, purchase_item_id: null })))
+      setSelectedItems((sale.items || []).map(it => ({ ...it, return_qty: 0, max_qty: Math.max(0, (parseInt(it.quantity) || 0) - (parseInt(it.returned_quantity) || 0)), purchase_item_id: null })))
     }).catch(() => toast.error(t('returns.load_failed'))).finally(() => setSearching(false))
   }, [initialSaleId])
   const [reason, setReason] = useState('')
@@ -59,7 +59,9 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
         ...it,
         return_qty: 0,
         // For purchase items, max returnable = remaining_quantity; for sale items = quantity
-        max_qty: returnType === 'purchase' ? (parseInt(it.remaining_quantity) || 0) : (parseInt(it.quantity) || 0),
+        max_qty: returnType === 'purchase'
+          ? (parseInt(it.remaining_quantity) || 0)
+          : Math.max(0, (parseInt(it.quantity) || 0) - (parseInt(it.returned_quantity) || 0)),
         // unit_price for purchase items is purchase_price
         unit_price: it.unit_price ?? it.purchase_price ?? 0,
         // purchase_item_id for tracking FIFO deduction
@@ -95,6 +97,7 @@ function ReturnForm({ onSubmit, loading, initialSaleId }) {
       reason,
       notes,
       payment_method: paymentMethod,
+      idempotency_key: crypto.randomUUID(),
     }
     if (paymentMethod === 'mixed') {
       Object.assign(payload, mixedAmounts)

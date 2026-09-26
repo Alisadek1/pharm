@@ -74,84 +74,102 @@ class ReturnController
             Response::error('Return items are required');
         }
 
-        $db     = Database::getInstance();
-        $type   = $body['type'];
-        $refId  = (int)$body['reference_id'];
+        $db             = Database::getInstance();
+        $type           = $body['type'];
+        $refId          = (int)$body['reference_id'];
+        $paymentMethod  = trim($body['payment_method'] ?? 'cash');
+        $cashAmount     = (float)($body['cash_amount']          ?? 0);
+        $visaAmount     = (float)($body['visa_amount']          ?? 0);
+        $walletAmount   = (float)($body['wallet_amount']        ?? 0);
+        $bankAmount     = (float)($body['bank_transfer_amount'] ?? 0);
+        $idempotencyKey = trim($body['idempotency_key'] ?? '') ?: null;
 
-        // Validate reference exists
+        // ── Sale return: fully delegated to ReturnService ──────────────────────
         if ($type === 'sale') {
-            $ref = $db->prepare("SELECT * FROM sales WHERE id = ?");
-        } else {
-            $ref = $db->prepare("SELECT * FROM purchases WHERE id = ?");
+            try {
+                $result = ReturnService::processSaleReturn(
+                    $db,
+                    $refId,
+                    $user['id'],
+                    $items,
+                    trim($body['reason'] ?? ''),
+                    $paymentMethod,
+                    $cashAmount,
+                    $visaAmount,
+                    $walletAmount,
+                    $bankAmount,
+                    $idempotencyKey
+                );
+            } catch (RuntimeException $e) {
+                Response::error($e->getMessage(), (int)$e->getCode() ?: 500);
+                return;
+            }
+
+            Logger::activity($user['id'], 'create', 'returns', $result['return_id'],
+                'Created return: ' . $result['return_number']);
+            Response::created([
+                'return_number' => $result['return_number'],
+                'total_amount'  => $result['total_amount'],
+            ], 'Return processed successfully');
+            return;
         }
+
+        // ── Purchase return ────────────────────────────────────────────────────
+        $ref = $db->prepare("SELECT id FROM purchases WHERE id = ?");
         $ref->execute([$refId]);
         if (!$ref->fetch()) {
-            Response::notFound("Referenced {$type} not found");
+            Response::notFound("Referenced purchase not found");
         }
 
-        $totalAmount = 0;
-        $returnNum   = 'RTN-' . date('Ymd') . '-' . str_pad((string)($db->query("SELECT COUNT(*) + 1 FROM returns")->fetchColumn()), 4, '0', STR_PAD_LEFT);
-
-        // Payment method processing
-        $paymentMethod     = trim($body['payment_method'] ?? 'cash');
-        $cashAmount        = (float)($body['cash_amount']           ?? 0);
-        $visaAmount        = (float)($body['visa_amount']           ?? 0);
-        $walletAmount      = (float)($body['wallet_amount']         ?? 0);
-        $bankAmount        = (float)($body['bank_transfer_amount']  ?? 0);
+        $totalAmount = 0.0;
 
         Database::beginTransaction();
         try {
+            // Insert with placeholder; lastInsertId gives collision-free unique ID
             $stmt = $db->prepare("
                 INSERT INTO returns (return_number, type, reference_id, user_id, reason, status,
                     payment_method, cash_amount, visa_amount, wallet_amount, bank_transfer_amount)
-                VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?)
+                VALUES ('RTN-TEMP', ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
-                $returnNum, $type, $refId, $user['id'], trim($body['reason'] ?? ''),
+                $type, $refId, $user['id'], trim($body['reason'] ?? ''),
                 $paymentMethod, $cashAmount, $visaAmount, $walletAmount, $bankAmount,
             ]);
-            $returnId = (int)$db->lastInsertId();
+            $returnId  = (int)$db->lastInsertId();
+            $returnNum = 'RTN-' . date('Ymd') . '-' . str_pad((string)$returnId, 4, '0', STR_PAD_LEFT);
+            $db->prepare("UPDATE returns SET return_number = ? WHERE id = ?")->execute([$returnNum, $returnId]);
 
             foreach ($items as $item) {
-                $medicineId     = (int)($item['medicine_id'] ?? 0);
-                $qty            = (int)($item['quantity'] ?? 0);
-                $unitPrice      = (float)($item['unit_price'] ?? 0);
-                $batchId        = !empty($item['batch_id']) ? (int)$item['batch_id'] : null;
-                $purchItemId    = !empty($item['purchase_item_id']) ? (int)$item['purchase_item_id'] : null;
+                $medicineId  = (int)($item['medicine_id'] ?? 0);
+                $qty         = (int)($item['quantity'] ?? 0);
+                $unitPrice   = (float)($item['unit_price'] ?? 0);
+                $batchId     = !empty($item['batch_id']) ? (int)$item['batch_id'] : null;
+                $purchItemId = !empty($item['purchase_item_id']) ? (int)$item['purchase_item_id'] : null;
 
                 if ($medicineId <= 0 || $qty <= 0) continue;
 
-                $subtotal    = round($qty * $unitPrice, 3);
+                $subtotal     = round($qty * $unitPrice, 3);
                 $totalAmount += $subtotal;
 
-                if ($type === 'sale') {
-                    // Sale return: customer returns goods to pharmacy — stock increases
-                    if ($batchId) {
-                        $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                           ->execute([$qty, $batchId]);
-                    }
-                } else {
-                    // Purchase return: pharmacy returns goods to supplier — stock decreases
-                    // Deduct from the earliest non-empty batch (FIFO)
-                    $batchStmt = $db->prepare("
-                        SELECT id, quantity FROM medicine_batches
-                        WHERE medicine_id = ? AND quantity > 0
-                        ORDER BY expiry_date ASC, id ASC
-                        LIMIT 1
-                    ");
-                    $batchStmt->execute([$medicineId]);
-                    $batchRow = $batchStmt->fetch();
-                    if ($batchRow) {
-                        $deduct = min($qty, (int)$batchRow['quantity']);
-                        $db->prepare("UPDATE medicine_batches SET quantity = quantity - ? WHERE id = ?")
-                           ->execute([$deduct, $batchRow['id']]);
-                        $batchId = $batchRow['id'];
-                    }
-                    // Reduce remaining_quantity on the purchase item
-                    if ($purchItemId) {
-                        $db->prepare("UPDATE purchase_items SET remaining_quantity = GREATEST(0, remaining_quantity - ?) WHERE id = ?")
-                           ->execute([$qty, $purchItemId]);
-                    }
+                // Purchase return: pharmacy returns goods to supplier — stock decreases (FIFO)
+                $batchStmt = $db->prepare("
+                    SELECT id, quantity FROM medicine_batches
+                    WHERE medicine_id = ? AND quantity > 0
+                    ORDER BY expiry_date ASC, id ASC
+                    LIMIT 1
+                ");
+                $batchStmt->execute([$medicineId]);
+                $batchRow = $batchStmt->fetch();
+                if ($batchRow) {
+                    $deduct  = min($qty, (int)$batchRow['quantity']);
+                    $db->prepare("UPDATE medicine_batches SET quantity = quantity - ? WHERE id = ?")
+                       ->execute([$deduct, $batchRow['id']]);
+                    $batchId = (int)$batchRow['id'];
+                }
+
+                if ($purchItemId) {
+                    $db->prepare("UPDATE purchase_items SET remaining_quantity = GREATEST(0, remaining_quantity - ?) WHERE id = ?")
+                       ->execute([$qty, $purchItemId]);
                 }
 
                 $db->prepare("
@@ -166,6 +184,7 @@ class ReturnController
         } catch (Exception $e) {
             Database::rollBack();
             Response::error('Return failed: ' . $e->getMessage(), 500);
+            return;
         }
 
         Logger::activity($user['id'], 'create', 'returns', $returnId, "Created return: {$returnNum}");

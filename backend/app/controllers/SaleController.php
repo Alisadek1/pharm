@@ -197,98 +197,39 @@ class SaleController
         $body = $_POST;
         $db   = Database::getInstance();
 
-        $sale = $this->getById($db, $id);
-        if (!$sale) {
-            Response::notFound('Sale not found');
-        }
-
-        if (!in_array($sale['status'], ['completed', 'partial_refund'], true)) {
-            Response::error('This sale cannot be refunded', 409);
-        }
-
         $items = is_string($body['items'] ?? '') ? json_decode($body['items'], true) : ($body['items'] ?? []);
         if (empty($items)) {
             Response::error('Refund items are required');
         }
 
-        $totalRefund = 0;
-        Database::beginTransaction();
+        $idempotencyKey = trim($body['idempotency_key'] ?? '') ?: null;
+
         try {
-            $returnNum = 'RTN-' . date('Ymd') . '-' . str_pad((string)($db->query("SELECT COUNT(*) + 1 FROM returns")->fetchColumn()), 4, '0', STR_PAD_LEFT);
-
-            $returnStmt = $db->prepare("
-                INSERT INTO returns (return_number, type, reference_id, user_id, customer_id, reason, status)
-                VALUES (?, 'sale', ?, ?, ?, ?, 'completed')
-            ");
-            $returnStmt->execute([
-                $returnNum, $id, $user['id'],
-                $sale['customer_id'] ?? null,
+            $result = ReturnService::processSaleReturn(
+                $db,
+                $id,
+                $user['id'],
+                $items,
                 trim($body['reason'] ?? 'Customer return'),
-            ]);
-            $returnId = (int)$db->lastInsertId();
-
-            foreach ($items as $item) {
-                $saleItemId = (int)($item['sale_item_id'] ?? 0);
-                $qty        = (int)($item['quantity'] ?? 0);
-
-                if ($saleItemId <= 0 || $qty <= 0) continue;
-
-                $saleItem = $db->prepare("SELECT * FROM sale_items WHERE id = ? AND sale_id = ?");
-                $saleItem->execute([$saleItemId, $id]);
-                $saleItem = $saleItem->fetch();
-
-                if (!$saleItem) continue;
-
-                $maxRefundable = (int)$saleItem['quantity'] - (int)$saleItem['returned_quantity'];
-                $qty           = min($qty, $maxRefundable);
-
-                if ($qty <= 0) continue;
-
-                $refundAmt = round($qty * (float)$saleItem['unit_price'], 3);
-                $totalRefund += $refundAmt;
-
-                // Return stock to batch using the frozen conversion factor
-                if ($saleItem['batch_id']) {
-                    $factor  = (float)($saleItem['conversion_factor'] ?? 1.0);
-                    $baseQty = (int)round($qty * $factor);
-                    $db->prepare("UPDATE medicine_batches SET quantity = quantity + ? WHERE id = ?")
-                       ->execute([$baseQty, $saleItem['batch_id']]);
-                }
-
-                $db->prepare("UPDATE sale_items SET returned_quantity = returned_quantity + ? WHERE id = ?")
-                   ->execute([$qty, $saleItemId]);
-
-                $db->prepare("
-                    INSERT INTO return_items (return_id, medicine_id, batch_id, quantity, unit_price, subtotal)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ")->execute([$returnId, $saleItem['medicine_id'], $saleItem['batch_id'], $qty, $saleItem['unit_price'], $refundAmt]);
-            }
-
-            // Update return total
-            $db->prepare("UPDATE returns SET total_amount = ? WHERE id = ?")->execute([round($totalRefund, 3), $returnId]);
-
-            // Check if fully refunded
-            $allItems = $db->prepare("SELECT SUM(quantity), SUM(returned_quantity) FROM sale_items WHERE sale_id = ?");
-            $allItems->execute([$id]);
-            [$totalQty, $totalReturned] = array_values($allItems->fetch(PDO::FETCH_NUM));
-            $newStatus = ($totalQty == $totalReturned) ? 'refunded' : 'partial_refund';
-            $db->prepare("UPDATE sales SET status = ? WHERE id = ?")->execute([$newStatus, $id]);
-
-            // Deduct loyalty points if they were earned
-            if ($sale['customer_id'] && $sale['loyalty_points_earned'] > 0 && $newStatus === 'refunded') {
-                $db->prepare("UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?")
-                   ->execute([$sale['loyalty_points_earned'], $sale['customer_id']]);
-            }
-
-            Database::commit();
-        } catch (Exception $e) {
-            Database::rollBack();
+                trim($body['payment_method'] ?? 'cash'),
+                (float)($body['cash_amount']         ?? 0),
+                (float)($body['visa_amount']          ?? 0),
+                (float)($body['wallet_amount']        ?? 0),
+                (float)($body['bank_transfer_amount'] ?? 0),
+                $idempotencyKey
+            );
+        } catch (RuntimeException $e) {
             Logger::error('Refund failed: ' . $e->getMessage());
-            Response::error('Refund failed: ' . $e->getMessage(), 500);
+            Response::error($e->getMessage(), (int)$e->getCode() ?: 500);
+            return;
         }
 
-        Logger::activity($user['id'], 'refund', 'sales', $id, "Refunded {$totalRefund} from sale #{$id}");
-        Response::success(['return_number' => $returnNum, 'refund_amount' => round($totalRefund, 3)], 'Refund processed successfully');
+        Logger::activity($user['id'], 'refund', 'sales', $id,
+            "Refunded {$result['total_amount']} from sale #{$id}");
+        Response::success([
+            'return_number' => $result['return_number'],
+            'refund_amount' => $result['total_amount'],
+        ], 'Refund processed successfully');
     }
 
     public function cancel(array $params): void
@@ -329,6 +270,12 @@ class SaleController
             if ($sale['customer_id'] && $sale['loyalty_points_earned'] > 0) {
                 $db->prepare("UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?")
                    ->execute([$sale['loyalty_points_earned'], $sale['customer_id']]);
+            }
+
+            // Restore loyalty points that were redeemed in this sale
+            if ($sale['customer_id'] && (int)($sale['loyalty_points_used'] ?? 0) > 0) {
+                $db->prepare("UPDATE customers SET loyalty_points = loyalty_points + ? WHERE id = ?")
+                   ->execute([(int)$sale['loyalty_points_used'], $sale['customer_id']]);
             }
 
             Database::commit();

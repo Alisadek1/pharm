@@ -29,13 +29,18 @@ class InventoryController
             $binds[] = $catId;
         }
 
-        $whereStr = implode(' AND ', $where);
+        // Condition that limits alerts to medicines with actual inventory activity
+        $hasActivity = '(EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.medicine_id = m.id)'
+            . ' OR EXISTS (SELECT 1 FROM sale_items si WHERE si.medicine_id = m.id)'
+            . ' OR EXISTS (SELECT 1 FROM medicine_batches mb WHERE mb.medicine_id = m.id))';
 
         $havingClause = '';
         if ($filter === 'low_stock') {
             $havingClause = 'HAVING current_stock <= m.minimum_stock';
+            $where[] = $hasActivity;
         } elseif ($filter === 'out_of_stock') {
             $havingClause = 'HAVING current_stock = 0';
+            $where[] = $hasActivity;
         } elseif ($filter === 'in_stock') {
             $havingClause = 'HAVING current_stock > m.minimum_stock';
         } elseif ($filter === 'expired') {
@@ -43,6 +48,8 @@ class InventoryController
         } elseif ($filter === 'near_expiry') {
             $havingClause = 'HAVING near_expiry_batches > 0';
         }
+
+        $whereStr = implode(' AND ', $where);
 
         $total = $db->prepare("
             SELECT COUNT(*) FROM (

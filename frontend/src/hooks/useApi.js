@@ -33,11 +33,11 @@ export function useApi() {
     }
   }, [])
 
-  const get    = (url, params, opts) => request('GET', url, params, opts)
-  const post   = (url, data, opts)   => request('POST', url, data, opts)
-  const put    = (url, data, opts)   => request('PUT', url, data, opts)
-  const patch  = (url, data, opts)   => request('PATCH', url, data, opts)
-  const del    = (url, opts)         => request('DELETE', url, null, opts)
+  const get    = (url, params, opts) => request('GET',    url, params, opts)
+  const post   = (url, data,   opts) => request('POST',   url, data,   opts)
+  const put    = (url, data,   opts) => request('PUT',    url, data,   opts)
+  const patch  = (url, data,   opts) => request('PATCH',  url, data,   opts)
+  const del    = (url, opts)         => request('DELETE', url, null,   opts)
 
   return { loading, error, get, post, put, patch, del }
 }

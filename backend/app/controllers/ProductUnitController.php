@@ -612,6 +612,51 @@ class ProductUnitController
         Response::success($this->formatUnitResult($unitRow, $baseUnit, $refFactor));
     }
 
+    // ── Standalone barcode assignment endpoint ───────────────
+    // PUT /api/product-units/{id}/barcode
+    // Assigns or validates a barcode on a unit without touching prices or stock.
+    // Cases:
+    //   A — new barcode, unit has none    → assign, 200 assigned
+    //   B — same barcode already on unit  → no-op, 200 already_linked
+    //   C — barcode on different unit, same medicine → 409
+    //   D — barcode on unit/medicine of different medicine → 409
+    //   E — barcode is a registered SKU   → 409
+
+    public function assignBarcode(array $params): void
+    {
+        $user = AuthMiddleware::handle();
+        AuthMiddleware::require($user, 'medicines.edit');
+
+        $unitId = (int)$params['id'];
+        $body   = $_POST;
+        $db     = Database::getInstance();
+
+        $unit = $this->getUnitById($db, $unitId);
+        if (!$unit) {
+            Response::notFound('Unit not found');
+        }
+
+        $barcode = trim($body['barcode'] ?? '');
+        if ($barcode === '') {
+            Response::validationError(['barcode' => ['Barcode is required']]);
+        }
+
+        $medicineId = (int)$unit['medicine_id'];
+
+        Database::beginTransaction();
+        try {
+            $status = $this->doAssignBarcode($db, $unitId, $medicineId, $barcode, $unit['barcode'] ?? null);
+            Database::commit();
+        } catch (\Exception $e) {
+            Database::rollBack();
+            Response::error($e->getMessage(), 409);
+        }
+
+        Logger::activity($user['id'], 'barcode', 'product_units', $unitId,
+            "Barcode '{$barcode}' {$status} on unit #{$unitId} (medicine #{$medicineId})");
+        Response::success(['status' => $status, 'barcode' => $barcode]);
+    }
+
     // ── Private helpers ───────────────────────────────────────
 
     /**
@@ -959,6 +1004,57 @@ class ProductUnitController
                  VALUES (?, ?, 1.000000, 1, 1, 1, 1, 0)"
             )->execute([$medicineId, $unitName]);
         }
+    }
+
+    /**
+     * Core barcode assignment logic — shared by assignBarcode endpoint and
+     * PurchaseController barcode capture.
+     *
+     * Returns 'assigned' or 'already_linked'.
+     * Throws \RuntimeException on any conflict (caller must roll back).
+     */
+    public function doAssignBarcode(PDO $db, int $unitId, int $medicineId, string $barcode, ?string $currentBarcode): string
+    {
+        // Case B: already linked to this unit — idempotent no-op
+        if ($currentBarcode !== null && $currentBarcode === $barcode) {
+            return 'already_linked';
+        }
+
+        // Case E: barcode is a registered local SKU
+        $skuChk = $db->prepare("SELECT id FROM medicines WHERE sku = ?");
+        $skuChk->execute([$barcode]);
+        if ($skuChk->fetch()) {
+            throw new \RuntimeException("Barcode '{$barcode}' is a local SKU and cannot be assigned as a product barcode");
+        }
+
+        // Case C: barcode belongs to a different unit of the same medicine
+        $cChk = $db->prepare(
+            "SELECT id FROM product_units WHERE barcode = ? AND medicine_id = ? AND id != ?"
+        );
+        $cChk->execute([$barcode, $medicineId, $unitId]);
+        if ($cChk->fetch()) {
+            throw new \RuntimeException("Barcode '{$barcode}' is already assigned to another unit of the same medicine");
+        }
+
+        // Case D: barcode belongs to a unit of a different medicine
+        $dChk = $db->prepare(
+            "SELECT id FROM product_units WHERE barcode = ? AND medicine_id != ?"
+        );
+        $dChk->execute([$barcode, $medicineId]);
+        if ($dChk->fetch()) {
+            throw new \RuntimeException("Barcode '{$barcode}' is already assigned to a different medicine");
+        }
+
+        // Case D2: barcode is in medicines.barcode of a different medicine
+        $d2Chk = $db->prepare("SELECT id FROM medicines WHERE barcode = ? AND id != ?");
+        $d2Chk->execute([$barcode, $medicineId]);
+        if ($d2Chk->fetch()) {
+            throw new \RuntimeException("Barcode '{$barcode}' is already assigned to a different medicine");
+        }
+
+        // Case A: clear to assign
+        $db->prepare("UPDATE product_units SET barcode = ? WHERE id = ?")->execute([$barcode, $unitId]);
+        return 'assigned';
     }
 
     /**

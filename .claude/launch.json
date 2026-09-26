@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js", "run", "dev", "--prefix", "C:\\xampp\\htdocs\\pharm\\frontend"],
       "port": 5173
+    },
+    {
+      "name": "pharm-backend",
+      "runtimeExecutable": "C:\\xampp\\php\\php.exe",
+      "runtimeArgs": ["-S", "127.0.0.1:8088", "-t", "C:\\xampp\\htdocs\\pharm\\backend\\public", "C:\\xampp\\htdocs\\pharm\\backend\\public\\index.php"],
+      "port": 8088
     }
   ]
 }

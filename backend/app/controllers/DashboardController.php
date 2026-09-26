@@ -44,12 +44,17 @@ class DashboardController
               AND status = 'completed'
         ")->fetch();
 
-        // Low stock medicines
+        // Low stock medicines — only medicines with actual inventory activity
         $lowStock = $db->query("
             SELECT COUNT(DISTINCT m.id) as count
             FROM medicines m
             WHERE m.is_active = 1
               AND (SELECT COALESCE(SUM(b.quantity), 0) FROM medicine_batches b WHERE b.medicine_id = m.id AND b.quantity > 0 AND b.expiry_date >= CURDATE()) <= m.minimum_stock
+              AND (
+                  EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.medicine_id = m.id)
+                  OR EXISTS (SELECT 1 FROM sale_items si WHERE si.medicine_id = m.id)
+                  OR EXISTS (SELECT 1 FROM medicine_batches mb WHERE mb.medicine_id = m.id)
+              )
         ")->fetchColumn();
 
         // Expired medicines

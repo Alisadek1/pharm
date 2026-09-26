@@ -126,6 +126,10 @@ class POSController
         $walletAmt  = (float)($body['wallet_amount'] ?? 0);
         $change     = max(0.0, ($cashAmount + $visaAmount + $walletAmt) - $total);
 
+        if ($total > 0.001 && ($cashAmount + $visaAmount + $walletAmt) < $total - 0.001) {
+            Response::error('Payment amount is less than the total due', 422);
+        }
+
         $settings2    = $db->query("SELECT `key`, value FROM settings WHERE `key` = 'loyalty_points_rate'")->fetchAll(PDO::FETCH_KEY_PAIR);
         $pointsRate   = (float)($settings2['loyalty_points_rate'] ?? 1);
         $pointsEarned = (int)floor($total * $pointsRate / 10);

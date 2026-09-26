@@ -94,9 +94,10 @@ $router->group('/api/medicines', function (Router $r) {
 
 // Product units — standalone CRUD
 $router->group('/api/product-units', function (Router $r) {
-    $r->get('/{id}',    [ProductUnitController::class, 'show']);
-    $r->put('/{id}',    [ProductUnitController::class, 'update']);
-    $r->delete('/{id}', [ProductUnitController::class, 'destroy']);
+    $r->get('/{id}',         [ProductUnitController::class, 'show']);
+    $r->put('/{id}',         [ProductUnitController::class, 'update']);
+    $r->delete('/{id}',      [ProductUnitController::class, 'destroy']);
+    $r->put('/{id}/barcode', [ProductUnitController::class, 'assignBarcode']);
 });
 
 // Barcode lookup (unit-aware) — replaces the POS-only barcode endpoint
@@ -124,10 +125,38 @@ $router->group('/api/purchases', function (Router $r) {
 
 // Inventory
 $router->group('/api/inventory', function (Router $r) {
-    $r->get('/',            [InventoryController::class, 'index']);
-    $r->get('/movements',   [InventoryController::class, 'movements']);
-    $r->post('/adjust',     [InventoryController::class, 'adjust']);
-    $r->get('/adjustments', [InventoryController::class, 'adjustments']);
+    $r->get('/',          [InventoryController::class, 'index']);
+    $r->get('/movements', [InventoryController::class, 'movements']);
+    $r->post('/adjust',   [InventoryController::class, 'adjust']);
+});
+
+// Inventory Counts
+$router->group('/api/inventory/counts', function (Router $r) {
+    $r->get('/',                    [InventoryCountController::class, 'index']);
+    $r->post('/',                   [InventoryCountController::class, 'create']);
+    $r->get('/search-medicines',    [InventoryCountController::class, 'searchMedicines']);
+    $r->get('/{id}',                [InventoryCountController::class, 'show']);
+    $r->delete('/{id}',             [InventoryCountController::class, 'destroy']);
+    $r->post('/{id}/items',         [InventoryCountController::class, 'upsertItem']);
+    $r->post('/{id}/submit',        [InventoryCountController::class, 'submit']);
+    $r->post('/{id}/approve',       [InventoryCountController::class, 'approve']);
+    $r->post('/{id}/apply',         [InventoryCountController::class, 'apply']);
+});
+
+// Inventory Adjustment Requests (multi-step workflow)
+$router->group('/api/inventory/adjustments', function (Router $r) {
+    $r->get('/',                         [AdjustmentController::class, 'index']);
+    $r->post('/',                        [AdjustmentController::class, 'create']);
+    $r->get('/report',                   [AdjustmentController::class, 'report']);
+    $r->get('/integrity',                [AdjustmentController::class, 'integrityCheck']);
+    $r->get('/{id}',                     [AdjustmentController::class, 'show']);
+    $r->post('/{id}/items',              [AdjustmentController::class, 'addItem']);
+    $r->delete('/{id}/items/{item_id}',  [AdjustmentController::class, 'removeItem']);
+    $r->post('/{id}/submit',             [AdjustmentController::class, 'submit']);
+    $r->post('/{id}/approve',            [AdjustmentController::class, 'approve']);
+    $r->post('/{id}/reject',             [AdjustmentController::class, 'reject']);
+    $r->post('/{id}/apply',              [AdjustmentController::class, 'apply']);
+    $r->post('/{id}/reverse',            [AdjustmentController::class, 'reverse']);
 });
 
 // POS
@@ -246,6 +275,15 @@ $router->group('/api/settings', function (Router $r) {
     $r->post('/logo',   [SettingController::class, 'uploadLogo']);
     $r->get('/backup',  [SettingController::class, 'backup']);
     $r->post('/backup', [SettingController::class, 'backup']);
+});
+
+// Barcode Import
+$router->group('/api/barcodes', function (Router $r) {
+    $r->post('/lookup',      [BarcodeImportController::class, 'lookup']);
+    $r->post('/import',      [BarcodeImportController::class, 'importSingle']);
+    $r->post('/preview',     [BarcodeImportController::class, 'previewCsv']);
+    $r->post('/import/csv',  [BarcodeImportController::class, 'importCsv']);
+    $r->get('/logs',         [BarcodeImportController::class, 'logs']);
 });
 
 // Drug Sync (Saudi RSD Integration)

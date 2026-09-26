@@ -559,12 +559,13 @@ function EditUnitModal({ allUnits, medicineId, selectedUnitId, onClose, onSaved 
       } else {
         const qty = parseFloat(boxQty)
         if (boxUnit) {
-          // Update existing box unit's quantity
+          // Update existing box unit's quantity; send existing barcode to avoid clearing it
           await api.put(`/api/product-units/${boxUnit.id}`, {
             unit_name: boxUnit.unit_name,
             parent_unit_id: baseUnit?.id ?? null,
             contains_quantity: qty,
             is_base_unit: 0,
+            barcode: boxUnit.barcode || '',
           })
         } else {
           // Create a new Box unit attached to the base (piece) unit
@@ -653,6 +654,7 @@ const EMPTY_ITEM = {
   medicine_id: '', medicine_name: '', batch_number: '', expiry_date: '', expiry_raw: '',
   manufacturing_date: '', quantity: 1, purchase_price: '', public_price: '',
   discount_pct: '', tax_rate: 0, unit_id: null, unit_factor: 1, availableUnits: [],
+  barcode: '',
 }
 
 /* ─── PurchaseForm ─────────────────────────────────────────── */
@@ -681,6 +683,7 @@ function PurchaseForm({ suppliers, onSubmit, loading, onCancel, initialData }) {
   const [pharmacistMode, setPharmacistMode] = useState('direct') // 'direct' | 'discount'
   const [quickAdd, setQuickAdd] = useState(null)
   const [editUnit, setEditUnit] = useState(null) // { idx, unit }
+  const [barcodeAssigning, setBarcodeAssigning] = useState(new Set())
 
   const computeDiscountPct = (purchPrice, pubPrice) => {
     const pub = parseFloat(pubPrice || 0)
@@ -771,7 +774,7 @@ function PurchaseForm({ suppliers, onSubmit, loading, onCancel, initialData }) {
       purchase_price: med.purchase_price || '',
       public_price: med.public_price || med.selling_price || '',
       discount_pct: computeDiscountPct(pur, pub),
-      unit_id: null, unit_factor: 1, availableUnits: [],
+      unit_id: null, unit_factor: 1, availableUnits: [], barcode: '',
     }))
     try {
       const res = await api.get(`/api/medicines/${med.id}/units`)
@@ -793,13 +796,38 @@ function PurchaseForm({ suppliers, onSubmit, loading, onCancel, initialData }) {
     setItems(it => it.map((item, i) => {
       if (i !== idx) return item
       const u = item.availableUnits.find(u => u.id === uid)
-      return { ...item, unit_id: uid, unit_factor: u ? parseFloat(u.conversion_factor || 1) : 1 }
+      return { ...item, unit_id: uid, unit_factor: u ? parseFloat(u.conversion_factor || 1) : 1, barcode: '' }
     }))
   }
 
   const handleQuickCreated = (med) => {
     if (quickAdd !== null) handleMedicineSelect(quickAdd.idx, med)
     setQuickAdd(null)
+  }
+
+  const handleBarcodeAssign = async (idx, unitId, barcode) => {
+    const code = barcode.trim()
+    if (!code) return
+    setBarcodeAssigning(s => new Set([...s, idx]))
+    try {
+      await api.put(`/api/product-units/${unitId}/barcode`, { barcode: code })
+      setItems(it => it.map((item, i) => {
+        if (i !== idx) return item
+        return {
+          ...item,
+          barcode: code,
+          availableUnits: item.availableUnits.map(u =>
+            (u.id === unitId || u.id === Number(unitId)) ? { ...u, barcode: code } : u
+          ),
+        }
+      }))
+      toast.success(t('purchases.barcode_assigned'))
+    } catch (err) {
+      const msg = err?.response?.data?.message || t('purchases.barcode_conflict_generic')
+      toast.error(msg)
+    } finally {
+      setBarcodeAssigning(s => { const ns = new Set(s); ns.delete(idx); return ns })
+    }
   }
 
   const handleUnitSaved = (idx, newUnits) => {
@@ -868,6 +896,7 @@ function PurchaseForm({ suppliers, onSubmit, loading, onCancel, initialData }) {
       public_price:       it.public_price,
       tax_rate:           it.tax_rate,
       unit_id:            it.unit_id || undefined,
+      barcode:            it.barcode || undefined,
     }))
 
     if (form.status !== 'ordered' && prepared.some(it => !it.expiry_date)) {
@@ -1013,22 +1042,50 @@ function PurchaseForm({ suppliers, onSubmit, loading, onCancel, initialData }) {
                             const label = info?.isPiece
                               ? t('purchases.piece')
                               : info ? `1 ${info.boxName} = ${info.qty} ${t('purchases.units_label')}` : null
+                            const existingBarcode = selUnit?.barcode || null
                             return (
-                              <div className="flex items-center gap-1.5 mt-0.5 ps-0.5">
-                                {label && (
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
-                                )}
-                                <span className="text-xs text-gray-300 dark:text-gray-600">·</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditUnit({ idx })}
-                                  className="flex items-center gap-0.5 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                                  tabIndex={0}
-                                >
-                                  <PencilSquareIcon className="w-3 h-3" />
-                                  {t('purchases.edit_unit')}
-                                </button>
-                              </div>
+                              <>
+                                <div className="flex items-center gap-1.5 mt-0.5 ps-0.5">
+                                  {label && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+                                  )}
+                                  <span className="text-xs text-gray-300 dark:text-gray-600">·</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditUnit({ idx })}
+                                    className="flex items-center gap-0.5 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                                    tabIndex={0}
+                                  >
+                                    <PencilSquareIcon className="w-3 h-3" />
+                                    {t('purchases.edit_unit')}
+                                  </button>
+                                </div>
+                                <div className="mt-1 ps-0.5">
+                                  {existingBarcode ? (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                                      ↳ {t('purchases.barcode_exists', { code: existingBarcode })}
+                                    </span>
+                                  ) : (
+                                    <input
+                                      value={item.barcode}
+                                      onChange={e => setItem(idx, 'barcode', e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault()
+                                          if (item.unit_id && item.barcode.trim()) {
+                                            handleBarcodeAssign(idx, item.unit_id, item.barcode)
+                                          }
+                                        }
+                                      }}
+                                      disabled={barcodeAssigning.has(idx)}
+                                      className="input text-xs font-mono py-1 w-full disabled:opacity-50 disabled:cursor-wait"
+                                      placeholder={barcodeAssigning.has(idx) ? t('purchases.barcode_assigning') : t('purchases.scan_barcode')}
+                                      autoComplete="off"
+                                      autoFocus
+                                    />
+                                  )}
+                                </div>
+                              </>
                             )
                           })()}
                         </>
